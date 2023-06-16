@@ -1,0 +1,18 @@
+{
+    allowed:{
+            contractIds:["rO8f4nTVarU6OtU2284C8-BIH6HscNd-srhWznUllTk"],//Only these contracts are allowed to run on glome (for performance and security reasons)
+            contractSourceIds:[],//Will automatically add contracts with these source ids to allowed to execute 
+    },
+    plugins:[],
+    arweaveConfig:{
+        host: 'arweave.net',
+        port: 443,
+        protocol: 'https'
+    },
+    gateways:{
+        bundlr:["https://node2.bundlr.network/","https://node1.bundlr.network/"],
+        arweaveGql:"https://g8way.io/graphql",
+        arweaveGateway:"https://g8way.io/"
+    }
+
+}
