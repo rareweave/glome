@@ -53,7 +53,7 @@ It is so because at the moment of writing this doc (21.06.2023), Bundlr is **not
 
 In future, it is going to change as Bundlr will transit to PoS-like network.
 While this transition will most defenitely change Nakamoto coeffecient to some reasonable amount, PoS networks tend to be still much more centralized than PoW networks (Like Bitcoin or Arweave).
-For comparison, the most decentralized PoS network as of moment of writing is Cardano, with Nakamoto coefficient of 35, while decentralization leader among PoW blockchains, Bitcoin, has 14000+.
+For comparison, the most decentralized PoS network as of moment of writing is Cardano, with Nakamoto coefficient of 35, while decentralization leader among PoW blockchains, Bitcoin, has 7000+.
 
 To be fair, most of time you might not need such big Nakamoto coeffecient. Most of smart contracts operate on PoS blockchains at the moment of writing.
 It would be reasonable to assume that if you run your smart contract Bundlr-only, it can be approximately compared by decentralization with contracts run on such PoS blockchains as Solana, Cardano, Ethereum, Polygon, etc.
