@@ -18,37 +18,38 @@ module.exports = async function startSyncLoop() {
         }
     }, 50000)
     consola.info("Serving " + servedContractsIds.size + " contracts");
-    let contractIndex = 0
-    for (let contract of servedContractsIds) {
 
-        contractIndex++
-        if (!databases.interactions[contract]) {
-            databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
+    for (let contractIndex = 0; contractIndex <= Array.from(servedContractsIds).length; contractIndex += 4) {
+        let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
+        if (!contracts) {
+            continue;
         }
-        let bundledTransactions = (await executeBundlrQuery([["Contract", contract], ["App-Name", ["SmartWeaveAction"]]]))
-        let transactions = (await executeTxQuery(0, [["Contract", contract], ["App-Name", ["SmartWeaveAction"]]], true))
-
-        // consola.info(contract + " has " + transactions.length + " base and " + bundledTransactions.length + " bundled transactions")
-
-        for await (txForContract of transactions) {
-            if (!await databases.interactions[contract].doesExist(txForContract.id)) {
-                await databases.interactions[contract].put(txForContract.id, txForContract)
-                console.log(txForContract.id)
-                consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded base interaction " + txForContract.id + " for contract " + contract)
+        for (let contract of contracts) {
+            if (!databases.interactions[contract]) {
+                databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
             }
-
         }
-        for await (txForContract of bundledTransactions) {
-            if (!await databases.interactions[contract].doesExist(txForContract.id)) {
-                await databases.interactions[contract].put(txForContract.id, txForContract)
-                console.log(txForContract.id)
-                consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded bundled interaction " + txForContract.id + " for contract " + contract)
+        let bundledTransactions = (await executeBundlrQuery([["Contract", contracts], ["App-Name", ["SmartWeaveAction"]]]))
+        let transactions = (await executeTxQuery(0, [["Contract", contracts], ["App-Name", ["SmartWeaveAction"]]], true))
+        for await (let txForContract of bundledTransactions) {
+            let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
+            for (let contract of belongingContracts) {
+                if (!await databases.interactions[contract].doesExist(txForContract.id)) {
+                    await databases.interactions[contract].put(txForContract.id, txForContract)
+                    consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded bundled interaction " + txForContract.id + " for contract " + contract)
+                }
             }
-
         }
-        consola.success("Loaded contract " + contract)
-
-
+        for await (let txForContract of transactions) {
+            let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
+            for (let contract of belongingContracts) {
+                if (!await databases.interactions[contract].doesExist(txForContract.id)) {
+                    await databases.interactions[contract].put(txForContract.id, txForContract)
+                    consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded base interaction " + txForContract.id + " for contract " + contract)
+                }
+            }
+        }
+        consola.success("Loaded contracts " + contracts.join(", "))
     }
 
     for (let contract of servedContractsIds) {
@@ -61,39 +62,39 @@ module.exports = async function startSyncLoop() {
     startExecutionSyncLoop()
     consola.success("Synced all contracts interactions")
     setInterval(async () => {
-        let contractIndex = 0
-        for (contract of servedContractsIds) {
-            contractIndex++
-            if (!databases.interactions[contract]) {
-                databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
+        for (let contractIndex = 0; contractIndex <= Array.from(servedContractsIds).length; contractIndex += 4) {
+            let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
+            if (!contracts) {
+                continue;
             }
-            let bundledTransactions = (await executeBundlrQuery([["Contract", contract], ["App-Name", ["SmartWeaveAction"]]]))
-            for await (txForContract of bundledTransactions) {
-                if (!await databases.interactions[contract].doesExist(txForContract.id)) {
-                    await databases.interactions[contract].put(txForContract.id, txForContract)
-                    consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded bundled interaction " + txForContract.id + " for contract " + contract)
+            for (let contract of contracts) {
+                if (!databases.interactions[contract]) {
+                    databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
                 }
-
+            }
+            let bundledTransactions = (await executeBundlrQuery([["Contract", contracts], ["App-Name", ["SmartWeaveAction"]]]))
+            let transactions = (await executeTxQuery(0, [["Contract", contracts], ["App-Name", ["SmartWeaveAction"]]], true))
+            for await (let txForContract of bundledTransactions) {
+                let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
+                for (let contract of belongingContracts) {
+                    if (!await databases.interactions[contract].doesExist(txForContract.id)) {
+                        await databases.interactions[contract].put(txForContract.id, txForContract)
+                        consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded bundled interaction " + txForContract.id + " for contract " + contract)
+                    }
+                }
+            }
+            for await (let txForContract of transactions) {
+                let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
+                for (let contract of belongingContracts) {
+                    if (!await databases.interactions[contract].doesExist(txForContract.id)) {
+                        await databases.interactions[contract].put(txForContract.id, txForContract)
+                        consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded base interaction " + txForContract.id + " for contract " + contract)
+                    }
+                }
             }
         }
     }, Math.max(servedContractsIds.size * 300, 4000))
-    setInterval(async () => {
-        let contractIndex = 0
-        for (contract of servedContractsIds) {
-            contractIndex++
-            if (!databases.interactions[contract]) {
-                databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
-            }
-            let transactions = (await executeTxQuery(0, [["Contract", contract], ["App-Name", ["SmartWeaveAction"]]], true))
-            for await (txForContract of transactions) {
-                if (!await databases.interactions[contract].doesExist(txForContract.id)) {
-                    await databases.interactions[contract].put(txForContract.id, txForContract)
-                    consola.info("[" + new Date(txForContract.timestamp).toISOString().split("T").join(" ").split(".")[0] + "]", "Loaded base interaction " + txForContract.id + " for contract " + contract)
-                }
 
-            }
-        }
-    }, Math.max(servedContractsIds.size * 300, 4000))
     setInterval(async () => {
         let contractIndex = 0
         for (contract of servedContractsIds) {

@@ -185,7 +185,7 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
     let resultPart = currentChunkResult?.data?.transactions?.edges
     resultPart = resultPart ? resultPart.map(edge => {
 
-      return { ...edge.node, owner: { address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner").value : edge.node.owner.address }, timestamp: edge.node.block.timestamp * 1000, bundled: false }
+      return { ...edge.node, owner: { address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.owner.address }, timestamp: edge.node.block.timestamp * 1000, bundled: false }
     }) : []
 
     yield* resultPart

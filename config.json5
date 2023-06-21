@@ -2,7 +2,7 @@
     port:9140,
     allowed:{
             contractIds:[],//Only these contracts are allowed to run on glome (for performance and security reasons)
-             contractSourceIds:["hcszckSXA5GTg6zg65nk6RQtT4aRHDzyxOOoD6DEGxg"],//Will automatically add contracts with these source ids to allowed to execute 
+            contractSourceIds:["hcszckSXA5GTg6zg65nk6RQtT4aRHDzyxOOoD6DEGxg"],//Will automatically add contracts with these source ids to allowed to execute 
     },
     plugins:[],
     arweaveConfig:{
