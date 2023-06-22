@@ -6,7 +6,7 @@ module.exports = fp(async function (app, opts) {
             resp.status(404)
             return "Not found"
         } else {
-            return await databases.interactions[contract].getMany(interactions)
+            return await databases.interactions[req.params.contract].getMany(interactions)
         }
     })
 })
