@@ -189,6 +189,7 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
     }) : []
 
     yield* resultPart
+    await module.exports.wait(config.requestTimeout)
     await databases.cursors.put(module.exports.makeTxQueryHash(min, tags, baseOnly), cursor)
   }
 
@@ -229,7 +230,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
       }) : []
 
       yield* resultPart
-      // module.exports.wait(100)
+      await module.exports.wait(config.requestTimeout)
       await databases.cursors.put(module.exports.makeBundlrQueryHash(tags, bundlrGateway), cursor)
     }
 

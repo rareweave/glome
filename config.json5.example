@@ -13,6 +13,6 @@
         bundlr:["https://node2.bundlr.network/","https://node1.bundlr.network/"],
         arweaveGql:"https://g8way.io/graphql",
         arweaveGateway:"https://g8way.io/"
-    }
-
+    },
+    requestTimeout:300
 }
