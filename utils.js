@@ -225,7 +225,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
       let resultPart = currentChunkResult?.data?.transactions?.edges
       // console.log(currentChunkResult)
       resultPart = resultPart ? resultPart.map(edge => {
-        return { ...edge.node, owner: { address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner").value : edge.node.address }, quantity: { winston: "0" }, fee: { winston: "0" }, recipient: "", block: { timestamp: Math.round(edge.node.timestamp / 1000) }, bundled: true }
+        return { ...edge.node, owner: { address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address }, quantity: { winston: "0" }, fee: { winston: "0" }, recipient: "", block: { timestamp: Math.round(edge.node.timestamp / 1000) }, bundled: true }
       }) : []
 
       yield* resultPart
