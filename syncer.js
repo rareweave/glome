@@ -19,11 +19,9 @@ module.exports = async function startSyncLoop() {
     }, 50000)
     consola.info("Serving " + servedContractsIds.size + " contracts");
 
-    for (let contractIndex = 0; contractIndex <= Array.from(servedContractsIds).length; contractIndex += 4) {
+    for (let contractIndex = 0; contractIndex < servedContractsIds.size; contractIndex += 4) {
         let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
-        if (!contracts) {
-            continue;
-        }
+
         for (let contract of contracts) {
             if (!databases.interactions[contract]) {
                 databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
@@ -51,21 +49,23 @@ module.exports = async function startSyncLoop() {
         }
         consola.success("Loaded contracts " + contracts.join(", "))
     }
-
-    for (let contract of servedContractsIds) {
+    consola.info("All contracts loaded")
+    for (let contract of [...servedContractsIds]) {
 
         if (!databases.interactions[contract]) {
             databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
         }
         await databases.indexes.put(contract, [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id))
+        consola.info("Sorted interactions for contract " + contract)
     }
-    startExecutionSyncLoop()
     consola.success("Synced all contracts interactions")
+    startExecutionSyncLoop()
+
     setInterval(async () => {
-        for (let contractIndex = 0; contractIndex <= Array.from(servedContractsIds).length; contractIndex += 4) {
+        for (let contractIndex = 0; contractIndex < Array.from(servedContractsIds).length; contractIndex += 4) {
             let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
-            if (!contracts) {
-                continue;
+            if (!contracts.length) {
+                break;
             }
             for (let contract of contracts) {
                 if (!databases.interactions[contract]) {
