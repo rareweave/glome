@@ -4,7 +4,7 @@ module.exports = fp(async function (app, opts) {
     app.get("/state/:contract", async (req, resp) => {
         let latestExecutionResult = await databases.evaluationResults.get(req.params.contract + "latest")
         if (latestExecutionResult) { return latestExecutionResult?.state } else {
-            let contractInstantiateTx = await databases.contracts.get(contract)
+            let contractInstantiateTx = await databases.contracts.get(req.params.contract)
             if (!contractInstantiateTx) {
                 resp.status(404)
                 return "Not indexed"
