@@ -37,7 +37,7 @@ function convertToRuntimePassable(O) {
     return new ivm.ExternalCopy(callbackify(O)).copyInto()
 }
 async function execute(codeId, state, interaction, contractInfo) {
-    if (!executionContexts[codeId]) {
+    if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
         const isolate = new ivm.Isolate({ memoryLimit: 256 });
         const context = isolate.createContextSync();
         const arweave = Arweave.init({
@@ -51,7 +51,8 @@ async function execute(codeId, state, interaction, contractInfo) {
         context.evalSync(`global.ContractAssert= function ContractAssert(cond, message) { if (!cond) throw new ContractError(message) }`)
         let code = await databases.codes.get(codeId)
         let contractScript = isolate.compileScriptSync(code.split("export default").join("").split("export").join(""));
-        executionContexts[codeId] = {
+        executionContexts[contractInfo.id] = {
+            codeId: codeId,
             script: contractScript,
             arweaveClient: arweave,
             isolate: isolate,
@@ -59,7 +60,7 @@ async function execute(codeId, state, interaction, contractInfo) {
         }
     }
 
-    executionContexts[codeId].context.global.setSync("SmartWeave", convertToRuntimePassable({
+    executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
         transaction: {
             bundled: interaction.bundled,
             timestamp: interaction.timestamp,
@@ -76,15 +77,15 @@ async function execute(codeId, state, interaction, contractInfo) {
             readContractState: (id) => require("./reader.js").readUpTo(id, interaction.timestamp),
             viewContractState: (id) => require("./reader.js").viewUpTo(id, interaction.timestamp)
         }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
-        arweave: { utils: executionContexts[codeId].arweaveClient.utils, crypto: executionContexts[codeId].arweaveClient.crypto, wallets: executionContexts[codeId].arweaveClient.wallets, ar: executionContexts[codeId].arweaveClient.ar },
-        unsafeClient: executionContexts[codeId].arweaveClient
+        arweave: { utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto: executionContexts[contractInfo.id].arweaveClient.crypto, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar },
+        unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
     }))
-    await executionContexts[codeId].script.run(executionContexts[codeId].context)
-    executionContexts[codeId].context.global.setSync("__state", convertToRuntimePassable(state))
+    await executionContexts[contractInfo.id].script.run(executionContexts[contractInfo.id].context)
+    executionContexts[contractInfo.id].context.global.setSync("__state", convertToRuntimePassable(state))
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
-    executionContexts[codeId].context.global.setSync("__action", convertToRuntimePassable({ input: JSON.parse(input), caller: interaction.owner.address }))
-    return (await executionContexts[codeId].context.evalSync(`handle(__state,__action)`, { promise: true, externalCopy: true })).copy()
+    executionContexts[contractInfo.id].context.global.setSync("__action", convertToRuntimePassable({ input: JSON.parse(input), caller: interaction.owner.address }))
+    return (await executionContexts[contractInfo.id].context.evalSync(`handle(__state,__action)`, { promise: true, externalCopy: true })).copy()
 }
 module.exports = execute
