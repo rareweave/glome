@@ -11,7 +11,7 @@ async function syncExecution() {
 
         let contractInteractions = await databases.indexes.get(contractId)
         let amountOfInteractions = contractInteractions.length
-        if (!contractInteractions) { return }
+        if (amountOfInteractions == 0) { return }
         let isExecuted = await databases.isExecuted.get(contractId);
         if (isExecuted && isExecuted == amountOfInteractions) {
             return
