@@ -47,8 +47,11 @@ async function execute(codeId, state, interaction, contractInfo) {
         });
         context.global.setSync("global", context.global.derefInto())
         context.global.setSync('console', convertToRuntimePassable(console));
-        context.evalSync(`global.ContractError=class ContractError extends Error { constructor(message) { super(message); this.name = \'ContractError\' } }`)
-        context.evalSync(`global.ContractAssert= function ContractAssert(cond, message) { if (!cond) throw new ContractError(message) }`)
+        context.evalSync(`
+        global.ContractError=class ContractError extends Error { constructor(message) { super(message); this.name = \'ContractError\' } };
+        global.UncacheableError = class UncacheableError extends Error { constructor(message) { super(message); this.name = \'UncacheableError\' } };
+        global.ContractAssert= function ContractAssert(cond, message) { if (!cond) throw new ContractError(message) };        
+        `)
         let code = await databases.codes.get(codeId)
         let contractScript = isolate.compileScriptSync(code.split("export default").join("").split("export").join(""));
         executionContexts[contractInfo.id] = {
@@ -74,8 +77,8 @@ async function execute(codeId, state, interaction, contractInfo) {
             id: contractInfo.id,
             owner: contractInfo.owner.address
         }, contracts: {
-            readContractState: (id) => require("./reader.js").readUpTo(id, interaction.timestamp),
-            viewContractState: (id) => require("./reader.js").viewUpTo(id, interaction.timestamp)
+            readContractState: (id) => require("./reader-api.js").readUpTo(id, interaction.timestamp),
+            viewContractState: (id) => require("./reader-api.js").viewUpTo(id, interaction.timestamp)
         }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
         arweave: { utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto: executionContexts[contractInfo.id].arweaveClient.crypto, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient

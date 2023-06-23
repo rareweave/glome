@@ -11,9 +11,9 @@ async function syncExecution() {
 
         let contractInteractions = await databases.indexes.get(contractId)
         let amountOfInteractions = contractInteractions.length
-        if (amountOfInteractions == 0) { return }
+
         let isExecuted = await databases.isExecuted.get(contractId);
-        if (isExecuted && isExecuted == amountOfInteractions) {
+        if (typeof isExecuted === "number" && isExecuted == amountOfInteractions) {
             return
         }
         let contractInstantiateTx = await databases.contracts.get(contractId)
@@ -54,6 +54,9 @@ async function syncExecution() {
             try {
                 newState = await execute(contractSrc, state, interaction, contractInstantiateTx)
             } catch (e) {
+                if (e.name == "UncacheableError") {
+                    break;
+                }
                 consola.error("[" + contractId + "] (" + interaction.id + ")", e)
                 // console.log(contractSrc, state, interaction, contractInstantiateTx)
                 newState = state
