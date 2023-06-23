@@ -11,7 +11,8 @@ module.exports = fp(async function (app, opts) {
                 return contracts
             } else {
                 let evaluationResults = await databases.evaluationResults.getMany([...contracts.map(c => c + "latest")])
-                return evaluationResults.map((er, contractIndex) => ({ state: er?.state, contractId: ([...contracts])[contractIndex] }))
+                let contractsUnwrapped = [...contracts]
+                return evaluationResults.map((er, contractIndex) => ({ state: er?.state, contractId: contractsUnwrapped[contractIndex] }))
             }
         }
     })
