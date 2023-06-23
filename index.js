@@ -25,6 +25,7 @@ let startSyncLoop = require("./syncer.js");
 startSyncLoop()
 
 const start = async () => {
+
     app.addHook("preHandler", (req, res, done) => {
         res.header("Access-Control-Allow-Origin", "*");
         res.header("Access-Control-Allow-Methods", "*");
