@@ -10,7 +10,8 @@ module.exports = fp(async function (app, opts) {
             if (!req.query.expandStates) {
                 return contracts
             } else {
-                return (await databases.evaluationResults.getMany(contracts.map(c => c.id + "latest"))).map((er, contractIndex) => ({ state: er.state, contractId: contracts[contractIndex] }))
+                let evaluationResults = await databases.evaluationResults.getMany([...contracts.map(c => c + "latest")])
+                return evaluationResults.map((er, contractIndex) => ({ state: er?.state, contractId: contracts[contractIndex] }))
             }
         }
     })

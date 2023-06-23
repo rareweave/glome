@@ -35,8 +35,9 @@ async function syncExecution() {
             let state, contractSrc;
 
             if (interactionIndex == 0) {//We're syncing up from ground, need to download init state and init code
-                contractSrc = contractInstantiateTx.tags.find(tag => tag.name == "Contract-Src").value
+
                 try {
+                    contractSrc = contractInstantiateTx.tags.find(tag => tag.name == "Contract-Src")?.value
                     state = contractInstantiateTx.tags.find(tag => tag.name == "Init-State") ? JSON.parse(contractInstantiateTx.tags.find(tag => tag.name == "Init-State").value) : JSON.parse(await fetchTxContent(contractId))
 
                 } catch (e) {
@@ -74,6 +75,24 @@ async function syncExecution() {
                 timestamp: interaction.timestamp
             })
             // console.log(newState)
+        }
+        if (amountOfInteractions === 0) {
+            let state, contractSrc;
+
+            try {
+                contractSrc = contractInstantiateTx.tags.find(tag => tag.name == "Contract-Src")?.value
+                state = contractInstantiateTx.tags.find(tag => tag.name == "Init-State") ? JSON.parse(contractInstantiateTx.tags.find(tag => tag.name == "Init-State").value) : JSON.parse(await fetchTxContent(contractId))
+
+            } catch (e) {
+                return null
+            }
+
+            await databases.evaluationResults.put(contractId + "latest", {
+                state: state,
+                contractSrc: contractSrc,
+                id: "Init",
+                timestamp: 0
+            })
         }
         await databases.isExecuted.put(contractId, amountOfInteractions)
         consola.info("Executed contract " + contractId + ", " + amountOfInteractions + " interactions")
