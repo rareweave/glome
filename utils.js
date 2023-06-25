@@ -258,3 +258,65 @@ module.exports.wait = (ms) => {
     setTimeout(resolve, ms)
   })
 }
+module.exports.accessPropertyByPath = require("lodash.get")
+
+module.exports.quickExpressionFilter = (expression, target) => {
+  let decodedExpression = Buffer.from(expression).toString("utf8")
+  let decodedExpressionCopy = Buffer.from(expression).toString("utf8")
+
+  let expressions = []
+  let decodedExpressionArr = [...decodedExpression]
+  let lastSave = 0
+  let lBrackets = []
+  for (let i = 0; i < decodedExpressionArr.length; i++) {
+    let l = decodedExpressionArr[i]
+    if (l == "(") {
+      lBrackets.push(i)
+    } else if (l == ")") {
+      let indexes = [lBrackets.pop() + 1, i];
+      let bracketContent = decodedExpressionCopy.slice(...indexes)
+      decodedExpression = String(decodedExpression.slice(0, indexes[0] - 1) + module.exports.quickExpressionFilter(bracketContent, target) + decodedExpression.slice(indexes[1] + 1)).padEnd(indexes[1] - indexes[0], " ")
+    }
+  }
+  for (let i = 0; i < decodedExpression.length; i++) {
+    let l = decodedExpression[i]
+    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(l)) {
+      expressions.push(decodedExpression.slice(lastSave, i))
+      expressions.push(l)
+      lastSave = i + 1
+    }
+
+  }
+  expressions.push(decodedExpression.slice(lastSave))
+
+  while (expressions.length > 1) {
+
+    let c1 = typeof expressions[0] == "string" ? expressions[0].trim() : expressions[0]
+    let op = typeof expressions[1] == "string" ? expressions[1].trim() : expressions[1]
+    let c2 = typeof expressions[2] == "string" ? expressions[2].trim() : expressions[2]
+
+    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(op)) { return false }
+
+    let c1Value = typeof c1 == "string" ? ((c1.startsWith("\"") && c1.endsWith("\"")) ? c1.slice(1, -1) : (!isNaN(c1) ? parseFloat(c1) : module.exports.accessPropertyByPath(target, c1))) : c1
+    let c2Value = typeof c2 == "string" ? ((c2.startsWith("\"") && c2.endsWith("\"")) ? c2.slice(1, -1) : (!isNaN(c2) ? parseFloat(c2) : module.exports.accessPropertyByPath(target, c2))) : c2
+
+    let finalValue = ({
+      "&": () => (c1Value && c2Value) ? 1 : 0,
+      "|": () => (c1Value || c2Value) ? 1 : 0,
+      "⊕": () => ((c1Value && !c2Value) || (!c1Value && c2Value)) ? 1 : 0,
+      "=": () => c1Value == c2Value ? 1 : 0,
+      ">": () => c1Value > c2Value ? 1 : 0,
+      "<": () => c1Value < c2Value ? 1 : 0,
+      "≥": () => c1Value >= c2Value ? 1 : 0,
+      "≤": () => c1Value <= c2Value ? 1 : 0,
+      "+": () => c1Value + c2Value,
+      "-": () => c1Value - c2Value,
+      "*": () => c1Value * c2Value,
+      "/": () => c1Value / c2Value
+    })[op]
+    expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
+  }
+  return expressions[0]
+
+}
+
