@@ -284,7 +284,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
     if (l == "\"") {
       quoteActive = !quoteActive
     }
-    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(l) && !quoteActive) {
+    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~"].includes(l) && !quoteActive) {
       expressions.push(decodedExpression.slice(lastSave, i))
       expressions.push(l)
       lastSave = i + 1
@@ -299,7 +299,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
     let op = typeof expressions[1] == "string" ? expressions[1].trim() : expressions[1]
     let c2 = typeof expressions[2] == "string" ? expressions[2].trim() : expressions[2]
 
-    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(op)) { return false }
+    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~"].includes(op)) { return false }
 
     let c1Value = typeof c1 == "string" ? ((c1.startsWith("\"") && c1.endsWith("\"")) ? c1.slice(1, -1) : (!isNaN(c1) ? parseFloat(c1) : module.exports.accessPropertyByPath(target, c1))) : c1
     let c2Value = typeof c2 == "string" ? ((c2.startsWith("\"") && c2.endsWith("\"")) ? c2.slice(1, -1) : (!isNaN(c2) ? parseFloat(c2) : module.exports.accessPropertyByPath(target, c2))) : c2
