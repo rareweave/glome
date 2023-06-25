@@ -278,9 +278,13 @@ module.exports.quickExpressionFilter = (expression, target) => {
       decodedExpression = String(decodedExpression.slice(0, indexes[0] - 1) + module.exports.quickExpressionFilter(bracketContent, target) + decodedExpression.slice(indexes[1] + 1)).padEnd(indexes[1] - indexes[0], " ")
     }
   }
+  let quoteActive = false
   for (let i = 0; i < decodedExpression.length; i++) {
     let l = decodedExpression[i]
-    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(l)) {
+    if (l == "\"") {
+      quoteActive = !quoteActive
+    }
+    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*"].includes(l) && !quoteActive) {
       expressions.push(decodedExpression.slice(lastSave, i))
       expressions.push(l)
       lastSave = i + 1
