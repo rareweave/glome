@@ -316,7 +316,14 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
       "*": () => c1Value * c2Value,
-      "/": () => c1Value / c2Value
+      "/": () => c1Value / c2Value,
+      "~": () => {
+        if (typeof c2Value == "string") {
+          return c2Value.split(c1Value).length > 1 ? 1 : 0
+        } else if (typeof c2Value == "number") {
+          return Math.abs(c2Value - c1Value) < (c2Value * 0.05) ? 1 : 0
+        }
+      }
     })[op]
     expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
   }
