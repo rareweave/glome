@@ -10,6 +10,9 @@ async function syncExecution() {
     global.servedContractsIds.forEach(async contractId => {
 
         let contractInteractions = await databases.indexes.get(contractId)
+        if (!contractInteractions) {
+            return
+        }
         let amountOfInteractions = contractInteractions.length
 
         let isExecuted = await databases.isExecuted.get(contractId);
