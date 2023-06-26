@@ -20,8 +20,8 @@ module.exports = async function startSyncLoop() {
     }, 50000)
     consola.info("Serving " + servedContractsIds.size + " contracts");
     async function syncNetworkInfo() {
-        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").then(c => c.json())
-        global.networkInfo = gatewayNetworkInfo
+        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c.json())
+        global.networkInfo = gatewayNetworkInfo || global.networkInfo
     }
     await syncNetworkInfo()
     setInterval(syncNetworkInfo, 25000)
