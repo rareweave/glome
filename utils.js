@@ -284,7 +284,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
     if (l == "\"") {
       quoteActive = !quoteActive
     }
-    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~"].includes(l) && !quoteActive) {
+    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(l) && !quoteActive) {
       expressions.push(decodedExpression.slice(lastSave, i))
       expressions.push(l)
       lastSave = i + 1
@@ -299,10 +299,10 @@ module.exports.quickExpressionFilter = (expression, target) => {
     let op = typeof expressions[1] == "string" ? expressions[1].trim() : expressions[1]
     let c2 = typeof expressions[2] == "string" ? expressions[2].trim() : expressions[2]
 
-    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~"].includes(op)) { return false }
+    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(op)) { return false }
 
-    let c1Value = typeof c1 == "string" ? ((c1.startsWith("\"") && c1.endsWith("\"")) ? c1.slice(1, -1) : (!isNaN(c1) ? parseFloat(c1) : module.exports.accessPropertyByPath(target, c1))) : c1
-    let c2Value = typeof c2 == "string" ? ((c2.startsWith("\"") && c2.endsWith("\"")) ? c2.slice(1, -1) : (!isNaN(c2) ? parseFloat(c2) : module.exports.accessPropertyByPath(target, c2))) : c2
+    let c1Value = JSONParseSafe(c1) || module.exports.accessPropertyByPath(target, c1)
+    let c2Value = JSONParseSafe(c2) || module.exports.accessPropertyByPath(target, c2)
 
     let finalValue = ({
       "&": () => (c1Value && c2Value) ? 1 : 0,
@@ -315,6 +315,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "≤": () => c1Value <= c2Value ? 1 : 0,
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
+      "!": () => c1Value == "#" ? (c2Value ? 0 : 1) : null,
       "*": () => c1Value * c2Value,
       "/": () => c1Value / c2Value,
       "~": () => {
@@ -323,6 +324,15 @@ module.exports.quickExpressionFilter = (expression, target) => {
         } else if (typeof c2Value == "number") {
           return Math.abs(c2Value - c1Value) < (c2Value * 0.05) ? 1 : 0
         }
+      },
+
+      "⊂": () => {
+        if (!Array.isArray(c2Value)) {
+          return 0;
+        }
+        if (c2Value.includes(c1Value)) {
+          return 1
+        } else { return 0 }
       }
     })[op]
     expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
@@ -331,3 +341,13 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
 }
 
+function JSONParseSafe(content) {
+  let result
+  try {
+    result = JSON.parse(content)
+  } catch (e) {
+    result = null
+    return result
+  }
+  return result
+}
