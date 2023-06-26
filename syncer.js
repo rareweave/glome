@@ -2,6 +2,7 @@ let { executeTxQuery, executeBundlrQuery, wait, makeBundlrQuery, findTxById } = 
 let consola = require("consola")
 let startExecutionSyncLoop = require("./executionSync.js")
 let lmdb = require("lmdb")
+const { fetch } = require("ofetch")
 module.exports = async function startSyncLoop() {
     for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false, null))) {
         await databases.contracts.put(contract.id, contract)
@@ -18,7 +19,12 @@ module.exports = async function startSyncLoop() {
         }
     }, 50000)
     consola.info("Serving " + servedContractsIds.size + " contracts");
-
+    async function syncNetworkInfo() {
+        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").then(c => c.json())
+        global.networkInfo = gatewayNetworkInfo
+    }
+    await syncNetworkInfo()
+    setInterval(syncNetworkInfo, 25000)
     for (let contractIndex = 0; contractIndex < servedContractsIds.size; contractIndex += 4) {
         let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
 

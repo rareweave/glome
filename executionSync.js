@@ -11,6 +11,7 @@ async function syncExecution() {
 
         let contractInteractions = await databases.indexes.get(contractId)
         if (!contractInteractions) {
+            consola.error(contractId, "No interactions in index")
             return
         }
         let amountOfInteractions = contractInteractions.length

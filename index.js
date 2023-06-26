@@ -18,7 +18,7 @@ global.databases = {
     indexes: lmdb.open("./db/indexes")
 }
 global.servedContractsIds = new Set(config.allowed.contractIds);
-
+global.networkInfo = {}
 
 let startSyncLoop = require("./syncer.js");
 
