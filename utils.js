@@ -179,7 +179,7 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   let hasNextPage = true;
 
   while (hasNextPage) {
-    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).then(res => res.json()).catch(e => null)
+    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res.json())
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
     cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
@@ -198,7 +198,7 @@ module.exports.findTxById = async function (txId) {
   let fromCache = await databases.transactions.get(txId)
   if (fromCache) { return fromCache }
 
-  let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).then(res => res.json()).catch(e => null)
+  let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).catch(e => null).then(res => res.json())
   fromGql = fromGql?.data?.transactions?.edges[0]
   if (fromGql) {
     fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : fromGql.node.address
@@ -216,11 +216,11 @@ module.exports.executeBundlrQuery = async function* (tags) {
     // console.log(cursor, await databases.cursors.get(module.exports.makeBundlrQueryHash(tags, bundlrGateway)))
     while (hasNextPage) {
 
-      let currentChunkResult = await fetch(bundlrGateway, module.exports.makeBundlrQuery(tags, cursor)).then(res => res.json()).catch(e => {
+      let currentChunkResult = await fetch(bundlrGateway, module.exports.makeBundlrQuery(tags, cursor)).catch(e => {
         // console.error(JSON.parse(module.exports.makeBundlrQuery(tags, cursor).body).query)
         console.error(e)
         return null
-      })
+      }).then(res => res.json())
       hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
       cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
       let resultPart = currentChunkResult?.data?.transactions?.edges
