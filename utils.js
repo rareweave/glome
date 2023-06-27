@@ -1,5 +1,6 @@
 let { fetch } = require('ofetch')
 let { hash } = require("blake3")
+const { consola } = require('consola')
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
   return hash(`query {
   transactions(sort:HEIGHT_ASC, first:100, block: { min:${min} },tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
@@ -239,7 +240,10 @@ module.exports.executeBundlrQuery = async function* (tags) {
 module.exports.fetchTxContent = async function (txId) {
   let fromCache = await databases.transactionsContents.get(txId)
   if (fromCache) { return fromCache }
-  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
+  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res ? res.text().catch(() => {
+    consola.error(txId, "Failed to load", config.gateways.arweaveGateway + txId,)
+    return null
+  }) : null)
   if (fromGateway) {
     await databases.transactionsContents.put(txId, fromGateway)
     return fromGateway
