@@ -10,4 +10,35 @@ Download all contract interactions:
 ``$nodeAddress/interactions/:contract_id``
 
 Fetch contracts that have specified code ID:
-``$nodeAddress/contracts-under-code/:code_id``
+``$nodeAddress/contracts-under-code/:code_id?expandStates=<expandStates>&filterScript=<filterScript>``
+
+Query parameters:
+
+`expandStates`:*Boolean*
+This param will expand contract states in response. If not provided, endpoint will return only contract IDs.
+
+`filterScript`:*FilterScript* (base64url encoded)
+
+FilterScript is a very simple filtering script that will allow you to filter out contracts by its state.
+
+FilterScript looks like this: `state.something="test"&(state.number>10)`
+
+It doesn't follow PEMDAS or other inexplicit order, however you can still use brackets for defining priority.
+
+Note that it also doesn't follow it with operators like &, so you have to put expressions in brackets explicitly. 
+
+We believe that explicitly defined order of operations is best for understanding.
+
+Currently supported operators are: `&`, `|`, `⊕`, `=`, `>`, `<`, `≥`, `≤`, `+`, `-`, `/`, `*`, `~`, `!`, `⊂`
+
+Context is contained of `state`, which is contract's state, and `contractId`, which is contract id.
+
+Your FilterScript should return either `true` or `1` for contract to be included in query result.
+
+`sortScript`:*SortScript* (base64url encoded)
+
+SortScript is essentially same as FilterScript, but with different context.
+
+Context for SortScript is `firstContract` and `secondContract`, which are object with fields `state` and `contractId`.
+
+You should return `1` if `firstContract` should be before `secondContract` in query reply, `0` if it doesn't matter (will be returned depending on their position in database), `-1` if `secondContract` should be before `firstContract`. 

@@ -20,6 +20,11 @@ module.exports = fp(async function (app, opts) {
         for await (let contract of contracts) {
             result.push(contract)
         }
+        if (req.query.sortScript) {
+            result.sort((firstContract, secondContract) => {
+                return quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract })
+            })
+        }
         if (!result) {
             resp.status(404)
             return "Not found"
