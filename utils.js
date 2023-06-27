@@ -239,7 +239,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
 module.exports.fetchTxContent = async function (txId) {
   let fromCache = await databases.transactionsContents.get(txId)
   if (fromCache) { return fromCache }
-  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res ? res.json() : null)
+  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
   if (fromGateway) {
     await databases.transactionsContents.put(txId, fromGateway)
     return fromGateway
