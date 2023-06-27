@@ -27,7 +27,7 @@ module.exports = fp(async function (app, opts) {
         }
         if (!result) {
             resp.status(404)
-            return "Not found"
+            return { error: "Not indexed" }
         } else {
 
             if (!req.query.expandStates) {

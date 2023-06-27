@@ -7,7 +7,7 @@ module.exports = fp(async function (app, opts) {
             let contractInstantiateTx = await databases.contracts.get(req.params.contract)
             if (!contractInstantiateTx) {
                 resp.status(404)
-                return "Not indexed"
+                return { error: "Not indexed" }
             } else {
                 return contractInstantiateTx.tags.find(tag => tag.name == "Init-State") ? JSON.parse(contractInstantiateTx.tags.find(tag => tag.name == "Init-State").value) : JSON.parse(await fetchTxContent(contractId))
             }
