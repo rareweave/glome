@@ -16,40 +16,40 @@ Fetch contracts that have specified code ID:
 
 Query parameters:
 
-`limit`:*Number* (0 < limit <= 300)
+`limit`: *Number* (0 < limit <= 300)
 
 Limits how much contracts can be returned by endpoint. Defaults to 300.
 
-`offset` *Number*
+`offset`: *Number*
 
 Offsets contracts returned by endpoint. Useful for pagination.
 
-`expandStates`:*Boolean*
+`expandStates`: *Boolean*
 This param will expand contract states in response. If not provided, endpoint will return only contract IDs.
 
-`filterScript`:*[FilterScript](#filterscript)* (base64url encoded)
+`filterScript`: *[FilterScript](#filterscript)* (base64url encoded)
 
-`sortScript`:*[SortScript](#sortscript)* (base64url encoded)
+`sortScript`: *[SortScript](#sortscript)* (base64url encoded)
 
 Fetch all contracts that glome has:
 ``$nodeAddress/all-contracts``
 
 Query parameters:
 
-`limit`:*Number* (0 < limit <= 300)
+`limit`: *Number* (0 < limit <= 300)
 
 Limits how much contracts can be returned by endpoint. Defaults to 300.
 
-`offset` *Number*
+`offset`: *Number*
 
 Offsets contracts returned by endpoint. Useful for pagination.
 
-`expandStates`:*Boolean*
+`expandStates`: *Boolean*
 This param will expand contract states in response. If not provided, endpoint will return only contract IDs.
 
-`filterScript`:*[FilterScript](#filterscript)* (base64url encoded)
+`filterScript`: *[FilterScript](#filterscript)* (base64url encoded)
 
-`sortScript`:*[SortScript](#sortscript)* (base64url encoded)
+`sortScript`: *[SortScript](#sortscript)* (base64url encoded)
 
 ## API types
 
