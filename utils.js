@@ -180,7 +180,8 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   let hasNextPage = true;
 
   while (hasNextPage) {
-    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json() : null)
+    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
+    if (!currentChunkResult) { continue }
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
     cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
