@@ -179,7 +179,7 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   let hasNextPage = true;
 
   while (hasNextPage) {
-    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res.json())
+    let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json() : null)
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
     cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
@@ -198,7 +198,7 @@ module.exports.findTxById = async function (txId) {
   let fromCache = await databases.transactions.get(txId)
   if (fromCache) { return fromCache }
 
-  let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).catch(e => null).then(res => res.json())
+  let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).catch(e => null).then(res => res ? res.json() : null)
   fromGql = fromGql?.data?.transactions?.edges[0]
   if (fromGql) {
     fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : fromGql.node.address
@@ -220,7 +220,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
         // console.error(JSON.parse(module.exports.makeBundlrQuery(tags, cursor).body).query)
         console.error(e)
         return null
-      }).then(res => res.json())
+      }).then(res => res ? res.json() : null)
       hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
       cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
       let resultPart = currentChunkResult?.data?.transactions?.edges
@@ -239,7 +239,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
 module.exports.fetchTxContent = async function (txId) {
   let fromCache = await databases.transactionsContents.get(txId)
   if (fromCache) { return fromCache }
-  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res.text())
+  let fromGateway = await fetch(config.gateways.arweaveGateway + txId).catch(e => null).then(res => res ? res.json() : null)
   if (fromGateway) {
     await databases.transactionsContents.put(txId, fromGateway)
     return fromGateway
