@@ -1,12 +1,19 @@
 let lmdb = require("lmdb")
 let consola = require("consola")
-let { ensureCodeAvailability, fetchTxContent } = require("./utils.js")
+let { ensureCodeAvailability, fetchTxContent, wait } = require("./utils.js")
 let execute = require("./execute.js");
 module.exports = async function executionSync() {
     await syncExecution()
-    setInterval(syncExecution, Math.max(servedContractsIds.size * 300, 10000))
+    await wait(Math.max(servedContractsIds.size * 300, 20000))
+    setInterval(syncExecution, 5000)
 }
 async function syncExecution() {
+    for (contract of servedContractsIds) {
+        if (!databases.interactions[contract]) {
+            databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
+        }
+        await databases.indexes.put(contract, [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id))
+    }
     global.servedContractsIds.forEach(async contractId => {
 
         let contractInteractions = await databases.indexes.get(contractId)

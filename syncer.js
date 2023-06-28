@@ -102,13 +102,6 @@ module.exports = async function startSyncLoop() {
     }, Math.max(servedContractsIds.size * 300, 4000))
 
     setInterval(async () => {
-        let contractIndex = 0
-        for (contract of servedContractsIds) {
-            contractIndex++
-            if (!databases.interactions[contract]) {
-                databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
-            }
-            await databases.indexes.put(contract, [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id))
-        }
+
     }, Math.max(servedContractsIds.size * 300, 4000))
 }
