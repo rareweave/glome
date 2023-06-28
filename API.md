@@ -67,7 +67,7 @@ We believe that explicitly defined order of operations is best for understanding
 
 Currently supported operators are: `&`, `|`, `⊕`, `=`, `>`, `<`, `≥`, `≤`, `+`, `-`, `/`, `*`, `~`, `!`, `⊂`
 
-Context is contained of `state`, which is contract's state, and `contractId`, which is contract id.
+Context is contained of `state`, which is contract's state, and `id`, which is contract id.
 
 Your FilterScript should return either `true` or `1` for contract to be included in query result.
 
@@ -75,7 +75,7 @@ Your FilterScript should return either `true` or `1` for contract to be included
 
 SortScript is essentially same as FilterScript, but with different context.
 
-Context for SortScript is `firstContract` and `secondContract`, which are object with fields `state` and `contractId`.
+Context for SortScript is `firstContract` and `secondContract`, which are object with fields `state` and `id`.
 
 You should return `1` if `firstContract` should be before `secondContract` in query reply, `0` if it doesn't matter (will be returned depending on their position in database), `-1` if `secondContract` should be before `firstContract`. 
 
