@@ -8,7 +8,7 @@ module.exports = fp(async function (app, opts) {
             .filter(c => c.value.tags.find(tag => tag.name == "Contract-Src").value == req.params.codeId)
             .map(async c => {
 
-                return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.id }
+                return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.timestamp }
             }).filter(c => {
                 if (req.query.filterScript) {
                     return quickExpressionFilter(Buffer.from(req.query.filterScript, "base64url").toString("utf-8"), c)

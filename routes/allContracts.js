@@ -7,7 +7,7 @@ module.exports = fp(async function (app, opts) {
             .getRange({ offset: req.query.offset || 0, limit: Math.min(req.query.limit || 300, 300) })
             .map(async c => {
 
-                return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.id }
+                return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.timestamp }
             }).filter(c => {
                 if (req.query.filterScript) {
                     return quickExpressionFilter(Buffer.from(req.query.filterScript, "base64url").toString("utf-8"), c)
