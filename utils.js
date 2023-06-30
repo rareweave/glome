@@ -309,6 +309,11 @@ module.exports.quickExpressionFilter = (expression, target) => {
     let c1Value = JSONParseSafe(c1) || module.exports.accessPropertyByPath(target, c1)
     let c2Value = JSONParseSafe(c2) || module.exports.accessPropertyByPath(target, c2)
 
+    let functions = {
+      type: (value) => typeof value,
+      not: (value) => !value
+    }
+
     let finalValue = ({
       "&": () => (c1Value && c2Value) ? 1 : 0,
       "|": () => (c1Value || c2Value) ? 1 : 0,
@@ -320,7 +325,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "≤": () => c1Value <= c2Value ? 1 : 0,
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
-      "!": () => c1Value == "#" ? (c2Value ? 0 : 1) : null,
+      "!": () => functions[c1Value] ? functions[c1Value](c2Value) : null,//! is not "not" but function call
       "*": () => c1Value * c2Value,
       "/": () => c1Value / c2Value,
       "~": () => {
