@@ -311,7 +311,8 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
     let functions = {
       type: (value) => typeof value,
-      not: (value) => !value ? 1 : 0
+      not: (value) => !value ? 1 : 0,
+      len: (value) => value?.length
     }
 
     let finalValue = ({
