@@ -3,11 +3,13 @@ const fp = require('fastify-plugin')
 let { quickExpressionFilter, properRange } = require("../utils.js")
 module.exports = fp(async function (app, opts) {
     app.get("/contracts-under-code/:codeId", async (req, resp) => {
-        let contracts = properRange(databases.contracts, [["filter", c => c.value.tags.find(tag => tag.name == "Contract-Src").value == req.params.codeId], ["map", async c => {
+        let contracts = properRange(databases.contracts, [["filter", c => c && c.value.tags.find(tag => tag.name == "Contract-Src")?.value == req.params.codeId], ["map", async c => {
 
             return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.timestamp }
         }], ["filter", c => {
+
             if (req.query.filterScript) {
+
                 return quickExpressionFilter(Buffer.from(req.query.filterScript, "base64url").toString("utf-8"), c)
             } else {
                 return true
@@ -20,6 +22,7 @@ module.exports = fp(async function (app, opts) {
         }
         if (req.query.sortScript) {
             result.sort((firstContract, secondContract) => {
+
                 return quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract })
             })
         }

@@ -311,7 +311,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
     let functions = {
       type: (value) => typeof value,
-      not: (value) => !value
+      not: (value) => !value ? 1 : 0
     }
 
     let finalValue = ({
@@ -325,7 +325,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "≤": () => c1Value <= c2Value ? 1 : 0,
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
-      "!": () => functions[c1Value] ? functions[c1Value](c2Value) : null,//! is not "not" but function call
+      "!": () => functions[c1Value] ? JSON.stringify(functions[c1Value](c2Value)) : null,//! is not "not" but function call
       "*": () => c1Value * c2Value,
       "/": () => c1Value / c2Value,
       "~": () => {
@@ -346,7 +346,9 @@ module.exports.quickExpressionFilter = (expression, target) => {
       }
     })[op]
     expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
+
   }
+
   return expressions[0]
 
 }
