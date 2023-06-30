@@ -356,3 +356,25 @@ function JSONParseSafe(content) {
   }
   return result
 }
+module.exports.properRange = async function* properRange(db, transformations, startFrom, limit) {
+  let count = 0
+  let index = startFrom || 0
+  let iterator = await db.getRange({ offset: startFrom || 0 })
+  let lastItem = { done: false, value: null }
+  while (!lastItem.done) {
+    lastItem = await iterator.next()
+    index++
+    let item = lastItem.value
+    for await (let transformation of transformations) {
+      if (transformation[0] == "map") {
+        item = await transformation[1](item)
+      } else if (transformation[0] == "filter") {
+        if (!await transformation[1](item)) { continue; }
+      }
+    }
+    yield ({ ...item, index })
+    count++
+    if (count >= limit) { break; }
+  }
+
+}
