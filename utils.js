@@ -266,6 +266,7 @@ module.exports.wait = (ms) => {
 module.exports.accessPropertyByPath = require("lodash.get")
 
 module.exports.quickExpressionFilter = (expression, target) => {
+
   let decodedExpression = Buffer.from(expression).toString("utf8")
   let decodedExpressionCopy = Buffer.from(expression).toString("utf8")
 
@@ -306,13 +307,16 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
     if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(op)) { return false }
 
-    let c1Value = JSONParseSafe(c1) || module.exports.accessPropertyByPath(target, c1)
-    let c2Value = JSONParseSafe(c2) || module.exports.accessPropertyByPath(target, c2)
+    let c1Value = JSONParseSafe(c1) === null ? module.exports.accessPropertyByPath(target, c1) : JSONParseSafe(c1)
+    let c2Value = JSONParseSafe(c2) === null ? module.exports.accessPropertyByPath(target, c2) : JSONParseSafe(c2)
 
     let functions = {
       type: (value) => typeof value,
       not: (value) => !value ? 1 : 0,
-      len: (value) => value?.length
+      len: (value) => {
+
+        return value?.length
+      }
     }
 
     let finalValue = ({
@@ -320,7 +324,10 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "|": () => (c1Value || c2Value) ? 1 : 0,
       "⊕": () => ((c1Value && !c2Value) || (!c1Value && c2Value)) ? 1 : 0,
       "=": () => c1Value == c2Value ? 1 : 0,
-      ">": () => c1Value > c2Value ? 1 : 0,
+      ">": () => {
+
+        return c1Value > c2Value ? 1 : 0
+      },
       "<": () => c1Value < c2Value ? 1 : 0,
       "≥": () => c1Value >= c2Value ? 1 : 0,
       "≤": () => c1Value <= c2Value ? 1 : 0,
