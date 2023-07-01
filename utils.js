@@ -402,7 +402,6 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
 }
 
-
 function JSONParseSafe(content) {
   if (typeof content == "string" && content.startsWith("$")) {
     let clone = heap[content.slice(1)]
