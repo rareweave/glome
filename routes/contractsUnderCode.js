@@ -9,7 +9,7 @@ module.exports = fp(async function (app, opts) {
         }], ["filter", c => {
 
             if (req.query.filterScript) {
-                console.log(quickExpressionFilter(Buffer.from(req.query.filterScript, "base64url").toString("utf-8"), c))
+
                 return quickExpressionFilter(Buffer.from(req.query.filterScript, "base64url").toString("utf-8"), c)
             } else {
                 return true
@@ -22,8 +22,8 @@ module.exports = fp(async function (app, opts) {
         }
         if (req.query.sortScript) {
             result.sort((firstContract, secondContract) => {
-
-                return quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract })
+                // console.log(quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract }))
+                return quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract }, true)
             })
         }
         if (!result) {

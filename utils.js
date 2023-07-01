@@ -264,29 +264,63 @@ module.exports.wait = (ms) => {
   })
 }
 module.exports.accessPropertyByPath = require("lodash.get")
-
+let heap = {}
 module.exports.quickExpressionFilter = (expression, target) => {
 
   let decodedExpression = Buffer.from(expression).toString("utf8")
-  let decodedExpressionCopy = Buffer.from(expression).toString("utf8")
 
   let expressions = []
-  let decodedExpressionArr = [...decodedExpression]
+
   let lastSave = 0
   let lBrackets = []
-  for (let i = 0; i < decodedExpressionArr.length; i++) {
-    let l = decodedExpressionArr[i]
-    if (l == "(") {
-      lBrackets.push(i)
-    } else if (l == ")") {
-      let indexes = [lBrackets.pop() + 1, i];
-      let bracketContent = decodedExpressionCopy.slice(...indexes)
-      decodedExpression = String(decodedExpression.slice(0, indexes[0] - 1) + module.exports.quickExpressionFilter(bracketContent, target) + decodedExpression.slice(indexes[1] + 1)).padEnd(indexes[1] - indexes[0], " ")
+  let quoteActive = false
+  let lastQuote = null
+  quoteSearchLoop: while (true) {
+
+    for (let i = 0; i < decodedExpression.length; i++) {
+      let l = decodedExpression.at(i)
+
+      if (l == "\"") {
+        if (lastQuote === null) {
+          lastQuote = i
+        } else {
+          let heapVarName = "str" + i + "_" + lastQuote + Math.round(Math.random() * 100000000).toString("16") + Date.now()
+          heap[heapVarName] = decodedExpression.slice(lastQuote + 1, i)
+          decodedExpression = decodedExpression.slice(0, lastQuote) + ("$" + heapVarName) + decodedExpression.slice(i + 1)
+
+          lastQuote = null
+          continue quoteSearchLoop;
+        }
+
+      }
+    }
+    break;
+  }
+  while (decodedExpression.split(")").length > 1) {
+
+    for (let i = 0; i < decodedExpression.length; i++) {
+      let l = decodedExpression.at(i)
+      if (l == "(") {
+        lBrackets.push(i)
+      } else if (l == ")") {
+        let indexes = [lBrackets.pop() + 1, i];
+        let bracketContent = decodedExpression.slice(...indexes)
+
+        let heapVarName = "bracket" + indexes[0] + "_" + indexes[1] + Math.round(Math.random() * 100000000).toString("16") + Date.now()
+        heap[heapVarName] = module.exports.quickExpressionFilter(bracketContent, target)
+        decodedExpression = decodedExpression.slice(0, indexes[0] - 1)
+          + "$" + heapVarName
+          + decodedExpression.slice(Math.min(decodedExpression.length, (indexes[0] - 1)
+            + bracketContent.length + 2))
+
+        break
+      }
     }
   }
-  let quoteActive = false
+
+
   for (let i = 0; i < decodedExpression.length; i++) {
-    let l = decodedExpression[i]
+    let l = decodedExpression.at(i)
     if (l == "\"") {
       quoteActive = !quoteActive
     }
@@ -300,16 +334,16 @@ module.exports.quickExpressionFilter = (expression, target) => {
   expressions.push(decodedExpression.slice(lastSave))
 
   while (expressions.length > 1) {
-
     let c1 = typeof expressions[0] == "string" ? expressions[0].trim() : expressions[0]
     let op = typeof expressions[1] == "string" ? expressions[1].trim() : expressions[1]
     let c2 = typeof expressions[2] == "string" ? expressions[2].trim() : expressions[2]
 
     if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(op)) { return false }
 
-    let c1Value = JSONParseSafe(c1) === null ? module.exports.accessPropertyByPath(target, c1) : JSONParseSafe(c1)
-    let c2Value = JSONParseSafe(c2) === null ? module.exports.accessPropertyByPath(target, c2) : JSONParseSafe(c2)
-
+    let c1Value = JSONParseSafe(c1)
+    let c2Value = JSONParseSafe(c2)
+    c1Value = c1Value === null ? module.exports.accessPropertyByPath(target, c1) : c1Value
+    c2Value = c2Value === null ? module.exports.accessPropertyByPath(target, c2) : c2Value
     let functions = {
       type: (value) => typeof value,
       not: (value) => !value ? 1 : 0,
@@ -333,7 +367,14 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "≤": () => c1Value <= c2Value ? 1 : 0,
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
-      "!": () => functions[c1Value] ? JSON.stringify(functions[c1Value](c2Value)) : null,//! is not "not" but function call
+      "!": () => {
+        if (functions[c1Value]) {
+
+          let heapVarName = "f_call" + Math.round(Math.random() * 100000000).toString("16") + Date.now()
+          heap[heapVarName] = functions[c1Value](c2Value)
+          return "$" + heapVarName
+        } else { return null }
+      },//! is not "not" but function call
       "*": () => c1Value * c2Value,
       "/": () => c1Value / c2Value,
       "~": () => {
@@ -356,12 +397,18 @@ module.exports.quickExpressionFilter = (expression, target) => {
     expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
 
   }
-
-  return expressions[0]
+  let finalRes = JSONParseSafe(expressions[0])
+  return finalRes === null ? expressions[0] : finalRes
 
 }
 
+
 function JSONParseSafe(content) {
+  if (typeof content == "string" && content.startsWith("$")) {
+    let clone = heap[content.slice(1)]
+    delete heap[content.slice(1)]
+    return clone
+  }
   let result
   try {
     result = JSON.parse(content)
