@@ -9,6 +9,7 @@ module.exports = async function startSyncLoop() {
         global.networkInfo = gatewayNetworkInfo || global.networkInfo
     }
     await syncNetworkInfo()
+    consola.info("Block height:" + global.networkInfo.height)
     setInterval(syncNetworkInfo, 25000)
     for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false, null))) {
         await databases.contracts.put(contract.id, contract)
