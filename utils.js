@@ -109,7 +109,7 @@ module.exports.makeTxQuery = (min, tags, baseOnly, cursor) => {
   return {
     body: JSON.stringify({
       query: `query {
-  transactions(${cursor ? 'after:"' + cursor + '",' : ''}sort:HEIGHT_ASC, first:100, block: { min:${min}, max:${global?.networkInfo?.height || 999999999}},tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1].length ? tag[1] : ["empty"])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
+  transactions(${cursor ? 'after:"' + cursor + '",' : ''}sort:HEIGHT_ASC, first:100, block: { min:${min}},tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1].length ? tag[1] : ["empty"])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
     pageInfo {
         hasNextPage
     }
@@ -183,6 +183,9 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
     let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
     if (!currentChunkResult) { continue }
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
+    if (currentChunkResult?.data?.transactions?.edges) {
+      currentChunkResult.data.transactions.edges = currentChunkResult?.data?.transactions?.edges.filter(edge => edge?.node?.block?.height)
+    }
     cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
     resultPart = resultPart ? resultPart.map(edge => {
@@ -286,7 +289,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
         } else {
           let heapVarName = "str" + i + "_" + lastQuote + Math.round(Math.random() * 100000000).toString("16") + Date.now()
           heap[heapVarName] = decodedExpression.slice(lastQuote + 1, i)
-          decodedExpression = decodedExpression.slice(0, lastQuote) + ("$" + heapVarName) + decodedExpression.slice(i + 1)
+          decodedExpression = decodedExpression.slice(0, lastQuote) + ("¡" + heapVarName) + decodedExpression.slice(i + 1)
 
           lastQuote = null
           continue quoteSearchLoop;
@@ -309,7 +312,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
         let heapVarName = "bracket" + indexes[0] + "_" + indexes[1] + Math.round(Math.random() * 100000000).toString("16") + Date.now()
         heap[heapVarName] = module.exports.quickExpressionFilter(bracketContent, target)
         decodedExpression = decodedExpression.slice(0, indexes[0] - 1)
-          + "$" + heapVarName
+          + "¡" + heapVarName
           + decodedExpression.slice(Math.min(decodedExpression.length, (indexes[0] - 1)
             + bracketContent.length + 2))
 
@@ -344,6 +347,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
     let c2Value = JSONParseSafe(c2)
     c1Value = c1Value === null ? module.exports.accessPropertyByPath(target, c1) : c1Value
     c2Value = c2Value === null ? module.exports.accessPropertyByPath(target, c2) : c2Value
+
     let functions = {
       type: (value) => typeof value,
       not: (value) => !value ? 1 : 0,
@@ -372,7 +376,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
 
           let heapVarName = "f_call" + Math.round(Math.random() * 100000000).toString("16") + Date.now()
           heap[heapVarName] = functions[c1Value](c2Value)
-          return "$" + heapVarName
+          return "¡" + heapVarName
         } else { return null }
       },//! is not "not" but function call
       "*": () => c1Value * c2Value,
@@ -403,7 +407,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
 }
 
 function JSONParseSafe(content) {
-  if (typeof content == "string" && content.startsWith("$")) {
+  if (typeof content == "string" && content.startsWith("¡")) {
     let clone = heap[content.slice(1)]
     delete heap[content.slice(1)]
     return clone
