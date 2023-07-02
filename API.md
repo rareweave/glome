@@ -12,7 +12,7 @@ Download all contract interactions:
 ``$nodeAddress/interactions/:contract_id``
 
 Fetch contracts that have specified code ID:
-``$nodeAddress/contracts-under-code/:code_id``
+POST ``$nodeAddress/contracts-under-code/:code_id``
 
 Query parameters:
 
@@ -27,12 +27,16 @@ Offsets contracts returned by endpoint. Useful for pagination.
 `expandStates`: *Boolean*
 This param will expand contract states in response. If not provided, endpoint will return only contract IDs.
 
-`filterScript`: *[FilterScript](#filterscript)* (base64url encoded)
+Body parameters:
 
-`sortScript`: *[SortScript](#sortscript)* (base64url encoded)
+`filterScript`: *[FilterScript](#filterscript)*
+
+`sortScript`: *[SortScript](#sortscript)*
+
+`variables`: Object with all of the variables available to sortScript and filterScript. Can be accessed from sortScript and filterScript like `variables.test`
 
 Fetch all contracts that glome has:
-``$nodeAddress/all-contracts``
+POST ``$nodeAddress/all-contracts``
 
 Query parameters:
 
@@ -47,9 +51,13 @@ Offsets contracts returned by endpoint. Useful for pagination.
 `expandStates`: *Boolean*
 This param will expand contract states in response. If not provided, endpoint will return only contract IDs.
 
-`filterScript`: *[FilterScript](#filterscript)* (base64url encoded)
+Body parameters:
 
-`sortScript`: *[SortScript](#sortscript)* (base64url encoded)
+`filterScript`: *[FilterScript](#filterscript)*
+
+`sortScript`: *[SortScript](#sortscript)*
+
+`variables`: Object with all of the variables available to sortScript and filterScript. Can be accessed from sortScript and filterScript like `variables.test`
 
 ## API types
 
