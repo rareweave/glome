@@ -20,7 +20,7 @@ module.exports = fp(async function (app, opts) {
         for await (let contract of contracts) {
             result.push(contract)
         }
-        if (req?.query?.sortScript) {
+        if (req?.body?.sortScript) {
             result.sort((firstContract, secondContract) => {
                 // console.log(quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract }))
 
