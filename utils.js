@@ -443,3 +443,20 @@ module.exports.properRange = async function* properRange(db, transformations, st
   }
 
 }
+
+async function paraSort(elements, compareFn) {
+  let cookedComparisons = {}
+  await Promise.all(elements.map(async (e, ei) => {
+    await Promise.all(elements.map(async (se, sei) => {
+      if (sei == ei) { return }
+      let key = [ei, sei].sort().join("-")
+      cookedComparisons[key] = cookedComparisons[key] || await compareFn(e, se)
+    }))
+  }))
+  return ([...Array(elements.length).keys()]).sort((ei, sei) => {
+    return cookedComparisons[[ei, sei].sort().join("-")]
+  }).map(i => elements[i])
+
+
+}
+module.exports.paraSort = paraSort
