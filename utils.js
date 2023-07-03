@@ -369,6 +369,7 @@ module.exports.quickExpressionFilter = (expression, target) => {
       "<": () => c1Value < c2Value ? 1 : 0,
       "≥": () => c1Value >= c2Value ? 1 : 0,
       "≤": () => c1Value <= c2Value ? 1 : 0,
+      "≠": () => c1Value != c2Value ? 1 : 0,
       "+": () => c1Value + c2Value,
       "-": () => c1Value - c2Value,
       "!": () => {
