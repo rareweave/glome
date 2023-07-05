@@ -109,7 +109,7 @@ module.exports.makeTxQuery = (min, tags, baseOnly, cursor) => {
   return {
     body: JSON.stringify({
       query: `query {
-  transactions(${cursor ? 'after:"' + cursor + '",' : ''}sort:HEIGHT_ASC, first:100, block: { min:${min}, max:${global.networkInfo.height-1}},tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1].length ? tag[1] : ["empty"])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
+  transactions(${cursor ? 'after:"' + cursor + '",' : ''}sort:HEIGHT_ASC, first:100, block: { min:${min}},tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1].length ? tag[1] : ["empty"])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
     pageInfo {
         hasNextPage
     }
@@ -182,16 +182,22 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   while (hasNextPage) {
     let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
     if (!currentChunkResult) { continue }
+  
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
     if (currentChunkResult?.data?.transactions?.edges) {
       currentChunkResult.data.transactions.edges = currentChunkResult?.data?.transactions?.edges.filter(edge => edge?.node?.block?.height)
     }
-    cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
+    
+    cursor = (currentChunkResult?.data?.transactions?.edges || []).filter(edge => edge?.node?.block?.height).at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
-    resultPart = resultPart ? resultPart.map(edge => {
-
+    resultPart = (resultPart ? resultPart.map(edge => {
+      if (baseOnly) {
+        if (!edge?.node?.block?.height) {
+          return null
+        }
+    }
       return { ...edge.node, address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.owner.address, owner: { address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.owner.address }, timestamp: edge.node.block.timestamp * 1000, bundled: false }
-    }) : []
+    }) : []).filter(rp=>rp)
 
     yield* resultPart
     await module.exports.wait(config.requestTimeout)
