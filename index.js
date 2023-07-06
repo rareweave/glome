@@ -20,6 +20,7 @@ global.databases = {
 global.servedContractsIds = new Set(config.allowed.contractIds);
 global.networkInfo = {}
 
+
 let startSyncLoop = require("./syncer.js");
 
 startSyncLoop()

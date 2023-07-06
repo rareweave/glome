@@ -10,6 +10,13 @@ module.exports = async function startSyncLoop() {
     }
     await syncNetworkInfo()
     consola.info("Block height: " + global.networkInfo.height)
+
+    global.plugins = Object.fromEntries(await Promise.all((config.plugins || []).map(async pl => {
+        let plugin = require(pl)
+        await plugin.setup(config)
+        return [pl.id, plugin.api]
+    })))
+
     setInterval(syncNetworkInfo, 25000)
     for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false, null))) {
         await databases.contracts.put(contract.id, contract)

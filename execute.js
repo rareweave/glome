@@ -64,6 +64,7 @@ async function execute(codeId, state, interaction, contractInfo) {
     }
 
     executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
+        extensions: global.pluginsObject,
         transaction: {
             bundled: interaction.bundled,
             timestamp: interaction.timestamp,
