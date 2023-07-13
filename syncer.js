@@ -27,7 +27,8 @@ module.exports = async function startSyncLoop() {
         await databases.contracts.put(contract, contractTx)
     }
     setInterval(async () => {
-        for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false))) {
+        for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false,null))) {
+            console.log("fetched contract "+contract.id)
             await databases.contracts.put(contract.id, contract)
             servedContractsIds.add(contract.id)
         }

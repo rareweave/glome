@@ -1,6 +1,8 @@
 let { fetch } = require('ofetch')
-let { hash } = require("blake3")
+let { blake3: hash } = require("hash-wasm")
+
 const { consola } = require('consola')
+hash("test").then(consola.log)
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
   return hash(`query {
   transactions(sort:HEIGHT_ASC, first:100, block: { min:${min} },tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
@@ -36,7 +38,7 @@ module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
     }
   }
 }
-`).toString("base64url")
+`)
 }
 module.exports.makeBundlrQueryHash = (tags, gateway) => {
   return hash(`${gateway}query {
@@ -58,7 +60,7 @@ module.exports.makeBundlrQueryHash = (tags, gateway) => {
     }
   }
 }
-`).toString("base64url")
+`)
 }
 module.exports.findTxQuery = (txId) => {
 
@@ -175,7 +177,7 @@ module.exports.makeBundlrQuery = (tags, cursor) => {
 
 module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   if (!cursor && cursor !== null) {
-    cursor = await databases.cursors.get(module.exports.makeTxQueryHash(min, tags, baseOnly))
+    cursor = await databases.cursors.get(await module.exports.makeTxQueryHash(min, tags, baseOnly))
   }
   let hasNextPage = true;
 
@@ -201,7 +203,7 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
 
     yield* resultPart
     await module.exports.wait(config.requestTimeout)
-    await databases.cursors.put(module.exports.makeTxQueryHash(min, tags, baseOnly), cursor)
+    await databases.cursors.put(await module.exports.makeTxQueryHash(min, tags, baseOnly), cursor)
   }
 
 }
@@ -223,7 +225,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
   for (let bundlrGateway of config.gateways.bundlr) {
     let hasNextPage = true;
 
-    let cursor = await databases.cursors.get(module.exports.makeBundlrQueryHash(tags, bundlrGateway)) || null
+    let cursor = await databases.cursors.get(await module.exports.makeBundlrQueryHash(tags, bundlrGateway)) || null
     // console.log(cursor, await databases.cursors.get(module.exports.makeBundlrQueryHash(tags, bundlrGateway)))
     while (hasNextPage) {
 
@@ -242,7 +244,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
 
       yield* resultPart
       await module.exports.wait(config.requestTimeout)
-      await databases.cursors.put(module.exports.makeBundlrQueryHash(tags, bundlrGateway), cursor)
+      await databases.cursors.put(await module.exports.makeBundlrQueryHash(tags, bundlrGateway), cursor)
     }
 
   }
