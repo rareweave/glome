@@ -10,7 +10,7 @@
         protocol: 'https'
     },
     gateways:{
-        bundlr:["https://node2.bundlr.network/","https://node1.bundlr.network/"],
+        bundlr:["https://node1.bundlr.network/graphql","https://node2.bundlr.network/graphql"],
         arweaveGql:"https://g8way.io/graphql",
         arweaveGateway:"https://g8way.io/"
     },
