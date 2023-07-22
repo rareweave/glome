@@ -14,7 +14,7 @@ module.exports = async function startSyncLoop() {
     global.plugins = Object.fromEntries(await Promise.all((config.plugins || []).map(async pl => {
         let plugin = require(pl)
         let pluginApi=await plugin.setup(config)
-        return [pl.id, pluginApi]
+        return [plugin.id, pluginApi]
     })))
 
     setInterval(syncNetworkInfo, 25000)
