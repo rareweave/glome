@@ -80,7 +80,7 @@ async function syncExecution() {
                 timestamp: interaction.timestamp
             })
             await databases.evaluationResults.put(contractId + "latest", {
-                state: newState.state || state,
+                state: newState?.state || state,
                 contractSrc: contractSrc,
                 id: interaction.id,
                 timestamp: interaction.timestamp
