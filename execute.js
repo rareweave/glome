@@ -1,18 +1,32 @@
 const Arweave = require('arweave');
 const ivm = require('isolated-vm');
-let fs = require("fs")
+let fs = require("fs");
+const { wait } = require('./utils.js');
+const executePromisisfyWarmup = fs.readFileSync("./execute-promisify-warmup.js", "utf-8")
 let executionContexts = {}
-function callbackify(O) {
+function callbackify(O, internals) {
     let mO;
     if (!O) { return O }
     if (!Array.isArray(O)) {
         mO = {}
         Object.keys(O).forEach(k => {
             if (typeof O[k] == 'function') {
-                mO[k] = new ivm.Callback((...args) => { O[k](...args) })
+                if (O[k].constructor.name === "AsyncFunction") {
+                    let internalName = Date.now().toString(16) + (Math.random().toString(16).split(".")[1])
+                    internals.setSync(internalName, new ivm.Callback((resolve, reject, args) => {
+                        // console.log("hello");
+
+                        (O[k](...args)).then(res => resolve.applyIgnored(undefined, [new ivm.ExternalCopy(res).copyInto()])).catch(e => reject.applyIgnored(undefined, [new ivm.ExternalCopy(e).copyInto()]))
+
+                    }));
+                    mO[k] = "glome-internal:" + internalName
+                    //    new ivm.Reference(async (...args) => { return new ivm.ExternalCopy(await O[k](...args)) })
+                } else {
+                    mO[k] = new ivm.Callback((...args) => { return new ivm.ExternalCopy(O[k](...args)).copyInto() })
+                }
 
             } else if (typeof O[k] == "object") {
-                mO[k] = callbackify(O[k])
+                mO[k] = callbackify(O[k], internals)
             } else {
                 mO[k] = O[k]
             }
@@ -21,9 +35,22 @@ function callbackify(O) {
         mO = [];
         O.forEach((el, elIndex) => {
             if (typeof el == "function") {
-                mO.push(new ivm.Callback((...args) => { el(...args) }))
+                if (el.constructor.name === "AsyncFunction") {
+                    let internalName = Date.now().toString(16) + (Math.random().toString(16).split(".")[1])
+                    internals.setSync(internalName, new ivm.Callback((resolve, reject, args) => {
+                        // console.log("hello");
+
+                        (el(...args)).then(res => resolve.applyIgnored(undefined, [new ivm.ExternalCopy(res).copyInto()])).catch(e => reject.applyIgnored(undefined, [new ivm.ExternalCopy(e).copyInto()]))
+
+                    }));
+                    mO.push("glome-internal:" + internalName)
+                    //    new ivm.Reference(async (...args) => { return new ivm.ExternalCopy(await O[k](...args)) })
+                } else {
+                    mO.push(new ivm.Callback((...args) => { return new ivm.ExternalCopy(el(...args)).copyInto() }))
+                }
+
             } else if (typeof el == "object") {
-                mO.push(callbackify(el))
+                mO.push(callbackify(el, internals))
             } else {
                 mO.push(el)
             }
@@ -32,9 +59,9 @@ function callbackify(O) {
 
     return mO
 }
-function convertToRuntimePassable(O) {
+function convertToRuntimePassable(O, internals) {
 
-    return new ivm.ExternalCopy(callbackify(O)).copyInto()
+    return new ivm.ExternalCopy(callbackify(O, internals)).copyInto()
 }
 async function execute(codeId, state, interaction, contractInfo) {
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
@@ -47,6 +74,21 @@ async function execute(codeId, state, interaction, contractInfo) {
         });
         context.global.setSync("global", context.global.derefInto())
         context.global.setSync('console', convertToRuntimePassable(console));
+
+
+        // context.global.setSync("_slowTask",
+        //     (arg, resolve, reject) => {
+        //         console.log("hello")
+        //         slowTask(arg).then(
+        //             (value) => {
+
+        //                 resolve.applyIgnored(undefined, [value])
+        //             },
+        //             (err) => reject.applyIgnored(undefined, [new ivm.ExternalCopy(err).copyInto()])
+        //         )
+        //         return undefined
+        //     }
+        // )
         context.evalSync(`
         global.ContractError=class ContractError extends Error { constructor(message) { super(message); this.name = \'ContractError\' } };
         global.UncacheableError = class UncacheableError extends Error { constructor(message) { super(message); this.name = \'UncacheableError\' } };
@@ -62,7 +104,9 @@ async function execute(codeId, state, interaction, contractInfo) {
             context: context
         }
     }
+    let internals = new ivm.Reference({})
 
+    executionContexts[contractInfo.id].context.global.setSync("internals", internals)
     executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
         extensions: global.plugins,
         transaction: {
@@ -84,7 +128,9 @@ async function execute(codeId, state, interaction, contractInfo) {
         arweave: { utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto: executionContexts[contractInfo.id].arweaveClient.crypto, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
-    }))
+    }, internals))
+    executionContexts[contractInfo.id].context.global.setSync("_ivm", ivm)
+    executionContexts[contractInfo.id].context.evalSync(executePromisisfyWarmup)
     await executionContexts[contractInfo.id].script.run(executionContexts[contractInfo.id].context)
     executionContexts[contractInfo.id].context.global.setSync("__state", convertToRuntimePassable(state))
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)

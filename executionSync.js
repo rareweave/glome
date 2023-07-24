@@ -74,7 +74,7 @@ async function syncExecution() {
                 newState = state
             }
             await databases.evaluationResults.put(contractId + interactionIndex, {
-                state: newState.state || state,
+                state: newState?.state || state,
                 contractSrc: contractSrc,
                 id: interaction.id,
                 timestamp: interaction.timestamp
