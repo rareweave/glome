@@ -7,9 +7,10 @@ module.exports = async function startSyncLoop() {
     async function syncNetworkInfo() {
         let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c.json())
         global.networkInfo = gatewayNetworkInfo || global.networkInfo
+        consola.info("Block height: " + global.networkInfo.height)
     }
     await syncNetworkInfo()
-    consola.info("Block height: " + global.networkInfo.height)
+
 
     global.plugins = Object.fromEntries(await Promise.all((config.plugins || []).map(async pl => {
         let plugin = require(pl)
