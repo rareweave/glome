@@ -1,8 +1,10 @@
 const Arweave = require('arweave');
 const ivm = require('isolated-vm');
+const { LuaFactory } = require('wasmoon')
 let fs = require("fs");
 const { wait } = require('./utils.js');
-const executePromisisfyWarmup = fs.readFileSync("./execute-promisify-warmup.js", "utf-8")
+const luaFactory = new LuaFactory()
+const executePromisifyWarmup = fs.readFileSync("./execute-promisify-warmup.js", "utf-8")
 let executionContexts = {}
 function callbackify(O, internals) {
     let mO;
@@ -63,7 +65,93 @@ function convertToRuntimePassable(O, internals) {
 
     return new ivm.ExternalCopy(callbackify(O, internals)).copyInto()
 }
-async function execute(codeId, state, interaction, contractInfo) {
+async function execute(codeId,state,interaction,contractInfo){
+    let contractContentType=await global.databases.contentTypes.get(codeId);
+    return await ((
+        {
+        "application/javascript":executeJS,
+        "application/lua":executeLua,
+        })[contractContentType](codeId,state,interaction,contractInfo))
+}
+
+async function executeLua(codeId,state,interaction,contractInfo){
+    let notCache=false
+    if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
+        let isolate= await luaFactory.createEngine({traceAllocations:true})
+        const arweave = Arweave.init({
+            host: 'arweave.net',
+            port: 443,
+            protocol: 'https'
+        });
+        isolate.global.setMemoryMax(2.56e+8)
+        isolate.global.setTimeout(Date.now() + 2000)
+        isolate.global.set("console",console)
+        isolate.global.set("print",console.log)
+        isolate.global.set("UncacheableError",(msg)=>{
+            notCache=true;
+            isolate.global.get("error")(msg)
+        })
+  
+        let code=await databases.codes.get(codeId)
+        executionContexts[contractInfo.id] = {
+            codeId: codeId,
+            script: code,
+            arweaveClient: arweave,
+            isolate: isolate,
+            context: isolate
+        }
+    }
+    executionContexts[contractInfo.id].isolate.global.set("SmartWeave", {
+        extensions: global.plugins,
+        transaction: {
+            bundled: interaction.bundled,
+            timestamp: interaction.timestamp,
+            id: interaction.id,
+            owner: interaction.owner.address,
+            tags: interaction.tags,
+            quantity: interaction.quantity.winston,
+            target: interaction.recipient,
+            reward: interaction.fee.winston,
+        }, contract: {
+            id: contractInfo.id,
+            owner: contractInfo.owner.address
+        }, contracts: {
+            readContractState: (id) => require("./reader-api.js").readUpTo(id, interaction.timestamp,(msg)=>{
+                notCache=true;
+                isolate.global.get("error")(msg)
+            }),
+            viewContractState: (id) => require("./reader-api.js").viewUpTo(id, interaction.timestamp,(msg)=>{
+                notCache=true;
+                isolate.global.get("error")(msg)
+            })
+        }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
+    
+        arweave: {
+            utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto:executionContexts[contractInfo.id].arweaveClient.crypto, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar
+        },
+        unsafeClient: executionContexts[contractInfo.id].arweaveClient
+
+    })
+    await lua.doString(executionContexts[contractInfo.id].script)
+    let handle=executionContexts[contractInfo.id].isolate.global.get("handle")
+    let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
+    let action={ input: JSON.parse(input), caller: interaction.owner.address }
+
+    let res
+    try{
+        res=await handle(state,action)
+    }catch(e){
+        if(notCache){
+            throw new UncacheableError(e)
+        }else{
+            throw new Error(e)
+        }
+    }
+    return res
+}
+
+async function executeJS(codeId, state, interaction, contractInfo) {
+
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
         const isolate = new ivm.Isolate({ memoryLimit: 256 });
         const context = isolate.createContextSync();
@@ -76,19 +164,6 @@ async function execute(codeId, state, interaction, contractInfo) {
         context.global.setSync('console', convertToRuntimePassable(console));
 
 
-        // context.global.setSync("_slowTask",
-        //     (arg, resolve, reject) => {
-        //         console.log("hello")
-        //         slowTask(arg).then(
-        //             (value) => {
-
-        //                 resolve.applyIgnored(undefined, [value])
-        //             },
-        //             (err) => reject.applyIgnored(undefined, [new ivm.ExternalCopy(err).copyInto()])
-        //         )
-        //         return undefined
-        //     }
-        // )
         context.evalSync(`
         global.ContractError=class ContractError extends Error { constructor(message) { super(message); this.name = \'ContractError\' } };
         global.UncacheableError = class UncacheableError extends Error { constructor(message) { super(message); this.name = \'UncacheableError\' } };
@@ -107,6 +182,7 @@ async function execute(codeId, state, interaction, contractInfo) {
     let internals = new ivm.Reference({})
 
     executionContexts[contractInfo.id].context.global.setSync("internals", internals)
+
     executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
         extensions: global.plugins,
         transaction: {
@@ -125,12 +201,18 @@ async function execute(codeId, state, interaction, contractInfo) {
             readContractState: (id) => require("./reader-api.js").readUpTo(id, interaction.timestamp),
             viewContractState: (id) => require("./reader-api.js").viewUpTo(id, interaction.timestamp)
         }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
-        arweave: { utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto: executionContexts[contractInfo.id].arweaveClient.crypto, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar },
+    
+        arweave: {
+            utils: executionContexts[contractInfo.id].arweaveClient.utils, crypto:
+            {
+               hash: async (d,a)=>await executionContexts[contractInfo.id].arweaveClient.crypto.hash(new Uint8Array(d),a)
+            }, wallets: executionContexts[contractInfo.id].arweaveClient.wallets, ar: executionContexts[contractInfo.id].arweaveClient.ar
+        },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
     }, internals))
     executionContexts[contractInfo.id].context.global.setSync("_ivm", ivm)
-    executionContexts[contractInfo.id].context.evalSync(executePromisisfyWarmup)
+    executionContexts[contractInfo.id].context.evalSync(executePromisifyWarmup)
     await executionContexts[contractInfo.id].script.run(executionContexts[contractInfo.id].context)
     executionContexts[contractInfo.id].context.global.setSync("__state", convertToRuntimePassable(state))
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
@@ -138,4 +220,5 @@ async function execute(codeId, state, interaction, contractInfo) {
     executionContexts[contractInfo.id].context.global.setSync("__action", convertToRuntimePassable({ input: JSON.parse(input), caller: interaction.owner.address }))
     return (await executionContexts[contractInfo.id].context.evalSync(`handle(__state,__action)`, { promise: true, externalCopy: true })).copy()
 }
+class UncacheableError extends Error { constructor(message) {this.name = 'UncacheableError'; super(message)} }
 module.exports = execute

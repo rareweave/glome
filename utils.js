@@ -214,7 +214,7 @@ module.exports.findTxById = async function (txId) {
   let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).catch(e => null).then(res => res ? res.json() : null)
   fromGql = fromGql?.data?.transactions?.edges[0]
   if (fromGql) {
-    fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : fromGql.node.address
+    fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : (fromGql.node.address)||fromGql.node?.owner?.address
     await databases.transactions.put(txId, fromGql.node)
     return fromGql.node
   } else { return null }
@@ -263,8 +263,11 @@ module.exports.fetchTxContent = async function (txId) {
 }
 module.exports.ensureCodeAvailability = async function (codeTxId) {
   if (!await databases.codes.doesExist(codeTxId)) {
+    let codeTx=await module.exports.findTxById(codeTxId)
+   
     let code = await module.exports.fetchTxContent(codeTxId)
-    if (code) {
+    if (code&&codeTx&&codeTx?.tags?.find(t=>t.name=="Content-Type")?.value) {
+      await databases.contentTypes.put(codeTxId,codeTx?.tags?.find(t=>t.name=="Content-Type")?.value)
       await databases.codes.put(codeTxId, code)
     }
   }

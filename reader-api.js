@@ -1,7 +1,8 @@
-let { fetchTxContent } = require("../utils.js")
+let { fetchTxContent } = require("./utils.js")
 module.exports.readUpTo = async (contractId, timestamp) => {
-    if (!global.servedContractIds.has(contractId)) {
-        global.servedContractIds.add(contractId)
+    console.log(global.servedContractsIds)
+    if (!global.servedContractsIds.has(contractId)) {
+        global.servedContractsIds.add(contractId)
         throw new UncacheableError("Put dependency contract (" + contractId + ") to loadlist")
     }
     let isExecuted = await databases.isExecuted.get(contractId);

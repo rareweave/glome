@@ -13,6 +13,7 @@ global.databases = {
     transactions: lmdb.open("./db/transactions"),
     transactionsContents: lmdb.open("./db/transactionsContents"),
     interactions: {},
+    contentTypes:lmdb.open("./db/contentTypes"),
     evaluationResults: lmdb.open("./db/evaluationResults"),
     isExecuted: lmdb.open("./db/isExecuted"),
     indexes: lmdb.open("./db/indexes")
