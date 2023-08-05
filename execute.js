@@ -76,13 +76,15 @@ async function execute(codeId,state,interaction,contractInfo){
 
 async function executeLua(codeId,state,interaction,contractInfo){
     let notCache=false
+    let isolate = await luaFactory.createEngine({traceAllocations:true})
+
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
-        let isolate= await luaFactory.createEngine({traceAllocations:true})
         const arweave = Arweave.init({
             host: 'arweave.net',
             port: 443,
             protocol: 'https'
         });
+
         isolate.global.setMemoryMax(2.56e+8)
         isolate.global.setTimeout(Date.now() + 2000)
         isolate.global.set("console",console)
@@ -101,6 +103,7 @@ async function executeLua(codeId,state,interaction,contractInfo){
             context: isolate
         }
     }
+
     executionContexts[contractInfo.id].isolate.global.set("SmartWeave", {
         extensions: global.plugins,
         transaction: {
@@ -132,8 +135,10 @@ async function executeLua(codeId,state,interaction,contractInfo){
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
     })
-    await lua.doString(executionContexts[contractInfo.id].script)
+
+    await isolate.doString(executionContexts[contractInfo.id].script)
     let handle=executionContexts[contractInfo.id].isolate.global.get("handle")
+    let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
     let action={ input: JSON.parse(input), caller: interaction.owner.address }
 
