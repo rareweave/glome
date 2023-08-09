@@ -1,6 +1,7 @@
 let { fetch } = require('ofetch')
 let { blake3: hash } = require("hash-wasm")
-
+const { LuaFactory } = require('wasmoon')
+const luaFactory = new LuaFactory()
 const { consola } = require('consola')
 hash("test").then(consola.log)
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
@@ -279,143 +280,17 @@ module.exports.wait = (ms) => {
 }
 module.exports.accessPropertyByPath = require("lodash.get")
 let heap = {}
-module.exports.quickExpressionFilter = (expression, target) => {
-
-  let decodedExpression = Buffer.from(expression).toString("utf8")
-
-  let expressions = []
-
-  let lastSave = 0
-  let lBrackets = []
-  let quoteActive = false
-  let lastQuote = null
-  quoteSearchLoop: while (true) {
-
-    for (let i = 0; i < decodedExpression.length; i++) {
-      let l = decodedExpression.at(i)
-
-      if (l == "\"") {
-        if (lastQuote === null) {
-          lastQuote = i
-        } else {
-          let heapVarName = "str" + i + "_" + lastQuote + Math.round(Math.random() * 100000000).toString("16") + Date.now()
-          heap[heapVarName] = decodedExpression.slice(lastQuote + 1, i)
-          decodedExpression = decodedExpression.slice(0, lastQuote) + ("¡" + heapVarName) + decodedExpression.slice(i + 1)
-
-          lastQuote = null
-          continue quoteSearchLoop;
-        }
-
-      }
-    }
-    break;
-  }
-  while (decodedExpression.split(")").length > 1) {
-
-    for (let i = 0; i < decodedExpression.length; i++) {
-      let l = decodedExpression.at(i)
-      if (l == "(") {
-        lBrackets.push(i)
-      } else if (l == ")") {
-        let indexes = [lBrackets.pop() + 1, i];
-        let bracketContent = decodedExpression.slice(...indexes)
-
-        let heapVarName = "bracket" + indexes[0] + "_" + indexes[1] + Math.round(Math.random() * 100000000).toString("16") + Date.now()
-        heap[heapVarName] = module.exports.quickExpressionFilter(bracketContent, target)
-        decodedExpression = decodedExpression.slice(0, indexes[0] - 1)
-          + "¡" + heapVarName
-          + decodedExpression.slice(Math.min(decodedExpression.length, (indexes[0] - 1)
-            + bracketContent.length + 2))
-
-        break
-      }
-    }
-  }
-
-
-  for (let i = 0; i < decodedExpression.length; i++) {
-    let l = decodedExpression.at(i)
-    if (l == "\"") {
-      quoteActive = !quoteActive
-    }
-    if (["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(l) && !quoteActive) {
-      expressions.push(decodedExpression.slice(lastSave, i))
-      expressions.push(l)
-      lastSave = i + 1
-    }
-
-  }
-  expressions.push(decodedExpression.slice(lastSave))
-
-  while (expressions.length > 1) {
-    let c1 = typeof expressions[0] == "string" ? expressions[0].trim() : expressions[0]
-    let op = typeof expressions[1] == "string" ? expressions[1].trim() : expressions[1]
-    let c2 = typeof expressions[2] == "string" ? expressions[2].trim() : expressions[2]
-
-    if (!c1 || !op || !c2 || !["&", "|", "⊕", "=", ">", "<", "≥", "≤", "+", "-", "/", "*", "~", "!", "⊂"].includes(op)) { return false }
-
-    let c1Value = JSONParseSafe(c1)
-    let c2Value = JSONParseSafe(c2)
-    c1Value = c1Value === null ? module.exports.accessPropertyByPath(target, c1) : c1Value
-    c2Value = c2Value === null ? module.exports.accessPropertyByPath(target, c2) : c2Value
-
-    let functions = {
-      type: (value) => typeof value,
-      not: (value) => !value ? 1 : 0,
-      len: (value) => {
-
-        return value?.length
-      }
-    }
-
-    let finalValue = ({
-      "&": () => (c1Value && c2Value) ? 1 : 0,
-      "|": () => (c1Value || c2Value) ? 1 : 0,
-      "⊕": () => ((c1Value && !c2Value) || (!c1Value && c2Value)) ? 1 : 0,
-      "=": () => c1Value == c2Value ? 1 : 0,
-      ">": () => {
-
-        return c1Value > c2Value ? 1 : 0
-      },
-      "<": () => c1Value < c2Value ? 1 : 0,
-      "≥": () => c1Value >= c2Value ? 1 : 0,
-      "≤": () => c1Value <= c2Value ? 1 : 0,
-      "≠": () => c1Value != c2Value ? 1 : 0,
-      "+": () => c1Value + c2Value,
-      "-": () => c1Value - c2Value,
-      "!": () => {
-        if (functions[c1Value]) {
-
-          let heapVarName = "f_call" + Math.round(Math.random() * 100000000).toString("16") + Date.now()
-          heap[heapVarName] = functions[c1Value](c2Value)
-          return "¡" + heapVarName
-        } else { return null }
-      },//! is not "not" but function call
-      "*": () => c1Value * c2Value,
-      "/": () => c1Value / c2Value,
-      "~": () => {
-        if (typeof c2Value == "string") {
-          return c2Value.split(c1Value).length > 1 ? 1 : 0
-        } else if (typeof c2Value == "number") {
-          return Math.abs(c2Value - c1Value) < (c2Value * 0.05) ? 1 : 0
-        }
-      },
-
-      "⊂": () => {
-        if (!Array.isArray(c2Value)) {
-          return 0;
-        }
-        if (c2Value.includes(c1Value)) {
-          return 1
-        } else { return 0 }
-      }
-    })[op]
-    expressions = [finalValue ? finalValue() : null, ...expressions.slice(3)]
-
-  }
-  let finalRes = JSONParseSafe(expressions[0])
-  return finalRes === null ? expressions[0] : finalRes
-
+module.exports.quickExpressionFilter =async (expression, target) => {
+  let isolate=await luaFactory.createEngine({traceAllocations:true})
+  isolate.global.setMemoryMax(2.56e+8)
+  isolate.global.setTimeout(Date.now() + 2000)
+  Object.values(target).forEach(([k,v])=>{
+    isolate.global.set(k,v)
+  })
+  
+  let res=await isolate.doString(expression)
+  lua.global.close()
+  return res
 }
 
 function JSONParseSafe(content) {
@@ -456,19 +331,27 @@ module.exports.properRange = async function* properRange(db, transformations, st
 
 }
 
-async function paraSort(elements, compareFn) {
-  let cookedComparisons = {}
-  await Promise.all(elements.map(async (e, ei) => {
-    await Promise.all(elements.map(async (se, sei) => {
-      if (sei == ei) { return }
-      let key = [ei, sei].sort().join("-")
-      cookedComparisons[key] = cookedComparisons[key] || await compareFn(e, se)
-    }))
-  }))
-  return ([...Array(elements.length).keys()]).sort((ei, sei) => {
-    return cookedComparisons[[ei, sei].sort().join("-")]
-  }).map(i => elements[i])
+async function quickSort(arr, compare = async (a, b) => a - b) {
+  if (arr.length <= 1) {
+    return arr;
+  }
 
+  const pivot = arr[0];
+  const left = [];
+  const right = [];
 
+  for (let i = 1; i < arr.length; i++) {
+    if ((await compare(arr[i], pivot)) < 0) {
+      left.push(arr[i]);
+    } else {
+      right.push(arr[i]);
+    }
+  }
+
+  return [
+    ...(await quicksort(left, compare)),
+    pivot,
+    ...(await quicksort(right, compare))
+  ];
 }
-module.exports.paraSort = paraSort
+module.exports.quickSort=quickSort
