@@ -1,16 +1,16 @@
 const { consola } = require('consola')
 const fp = require('fastify-plugin')
-let { quickExpressionFilter, properRange } = require("../utils.js")
+let { quickExpressionFilter, properRange,quickSort} = require("../utils.js")
 module.exports = fp(async function (app, opts) {
     app.post("/all-contracts", async (req, resp) => {
         let contracts = properRange(databases.contracts, [["map", async c => {
 
             return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.timestamp }
-        }], ["filter", c => {
+        }], ["filter", async c => {
 
             if (req?.body?.filterScript) {
                 // console.log(req.query.filterScript, Buffer.from(req.query.filterScript, "base64").toString("utf-8"), quickExpressionFilter(Buffer.from(req.query.filterScript, "base64").toString("utf-8"), c))
-                return quickExpressionFilter(req?.body?.filterScript, { ...c, variables: req.body.variables })
+                return await quickExpressionFilter(req?.body?.filterScript, { ...c, variables: req.body.variables })
             } else {
                 return true
             }
@@ -21,11 +21,9 @@ module.exports = fp(async function (app, opts) {
             result.push(contract)
         }
         if (req?.body?.sortScript) {
-            result.sort((firstContract, secondContract) => {
-                // console.log(quickExpressionFilter(Buffer.from(req.query.sortScript, "base64url").toString("utf-8"), { firstContract, secondContract }))
-
-                return quickExpressionFilter(req?.body?.sortScript, { firstContract, secondContract, variables: req.body.variables }, true)
-            })
+            result=await quickSort(result,async (firstContract, secondContract) => 
+               await quickExpressionFilter(req?.body?.sortScript, { firstContract, secondContract, variables: req.body.variables }, true)
+            )
         }
         if (!result) {
             resp.status(404)
