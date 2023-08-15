@@ -5,7 +5,7 @@ let lmdb = require("lmdb")
 const { fetch } = require("ofetch")
 module.exports = async function startSyncLoop() {
     async function syncNetworkInfo() {
-        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c.json())
+        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c?c?.json():null)
         global.networkInfo = gatewayNetworkInfo || global.networkInfo
         consola.info("Block height: " + global.networkInfo.height)
     }
