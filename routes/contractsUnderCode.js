@@ -18,6 +18,10 @@ module.exports = fp(async function (app, opts) {
         }]], req.query.offset || 0, Math.min(req.query.limit || 300, 300))
 
         let result = []
+    
+        for await (let contract of contracts) {
+            result.push(contract)
+        }
         for await (let contract of contracts) {
             result.push(contract)
         }

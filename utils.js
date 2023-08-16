@@ -3,7 +3,6 @@ let { blake3: hash } = require("hash-wasm")
 const { LuaFactory } = require('wasmoon')
 const luaFactory = new LuaFactory()
 const { consola } = require('consola')
-hash("test").then(consola.log)
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
   return hash(`query {
   transactions(sort:HEIGHT_ASC, first:100, block: { min:${min} },tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
@@ -284,12 +283,23 @@ module.exports.quickExpressionFilter =async (expression, target) => {
   let isolate=await luaFactory.createEngine({traceAllocations:true})
   isolate.global.setMemoryMax(2.56e+8)
   isolate.global.setTimeout(Date.now() + 2000)
-  Object.values(target).forEach(([k,v])=>{
+ 
+  Object.entries(target).forEach(([k,v])=>{
     isolate.global.set(k,v)
   })
-  
-  let res=await isolate.doString(expression)
-  lua.global.close()
+  isolate.global.set("includes",(s1,s2)=>{
+    console.log(s1,s2,s1.includes(s2))
+    return s1.includes(s2)})
+
+  let res;
+  try{
+  res=await isolate.doString(expression)
+  }catch(e){
+    console.error(e)
+    res=null
+  }finally{
+  isolate.global.close()
+}
   return res
 }
 
@@ -347,11 +357,12 @@ async function quickSort(arr, compare = async (a, b) => a - b) {
       right.push(arr[i]);
     }
   }
-
+  let ls=quicksort(left, compare)// we need to call it in parallel to achieve faster results
+  let rs=quicksort(right, compare)
   return [
-    ...(await quicksort(left, compare)),
+    ...(await ls),
     pivot,
-    ...(await quicksort(right, compare))
+    ...(await rs)
   ];
 }
 module.exports.quickSort=quickSort

@@ -188,7 +188,7 @@ async function executeJS(codeId, state, interaction, contractInfo) {
 
     executionContexts[contractInfo.id].context.global.setSync("internals", internals)
 
-    executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
+   await executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
         extensions: global.plugins,
         transaction: {
             bundled: interaction.bundled,
