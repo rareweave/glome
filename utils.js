@@ -1,6 +1,7 @@
 let { fetch } = require('ofetch')
 let { blake3: hash } = require("hash-wasm")
 const { LuaFactory } = require('wasmoon')
+const similarityScore=require("string-similarity-js").stringSimilarity
 const luaFactory = new LuaFactory()
 const { consola } = require('consola')
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
@@ -287,8 +288,11 @@ module.exports.quickExpressionFilter =async (expression, target) => {
   Object.entries(target).forEach(([k,v])=>{
     isolate.global.set(k,v)
   })
+  isolate.global.set("similarityScore",(s1,s2)=>{
+    return similarityScore(s1,s2)
+  }
+    )
   isolate.global.set("includes",(s1,s2)=>{
-    console.log(s1,s2,s1.includes(s2))
     return s1.includes(s2)})
 
   let res;
