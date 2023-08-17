@@ -13,7 +13,7 @@ global.databases = {
     transactions: lmdb.open("./db/transactions"),
     transactionsContents: lmdb.open("./db/transactionsContents"),
     interactions: {},
-    contentTypes:lmdb.open("./db/contentTypes"),
+    contentTypes: lmdb.open("./db/contentTypes"),
     evaluationResults: lmdb.open("./db/evaluationResults"),
     isExecuted: lmdb.open("./db/isExecuted"),
     indexes: lmdb.open("./db/indexes")
@@ -37,6 +37,18 @@ const start = async () => {
             return res.send();
         }
         done()
+    })
+    app.addContentTypeParser('application/octet-stream', function (request, payload, done) {
+        let data = Buffer.alloc(0)
+        payload.on('data', chunk => {
+            if (chunk.length + data.length >= 1e+8) {
+                throw "Too big payload"
+            }
+            data = Buffer.concat([data, chunk])
+        })
+        payload.on('end', () => {
+            done(null, data)
+        })
     })
     app.register(autoLoad, {
         dir: require("path").join(__dirname, 'routes')
