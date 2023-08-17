@@ -17,8 +17,8 @@ module.exports = fp(async function (app, opts) {
             resp.status(400)
             return "Failed posting to bundlr"
         }
-        let contracts = Array.from(servedContractsIds).slice(contractIndex, contractIndex + 4)
-        if(!contracts){return}
+        let contracts = Array.from(servedContractsIds)
+        if (!contracts) { return }
         for (let contract of contracts) {
             if (!databases.interactions[contract]) {
                 databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
@@ -26,18 +26,18 @@ module.exports = fp(async function (app, opts) {
         }
 
         if (bundlrResponse && bundlrResponse.id && bundlrResponse.timestamp) {
-           
+
             let transaction = new DataItem(req.body)
             if (!transaction) { return }
             let content = Buffer.from(transaction.data, "base64")
             if (!content || !content.length) { return }
             transaction = {
-                id:transaction.id,
+                id: transaction.id,
                 address: await arweave.wallets.ownerToAddress(transaction.owner),
                 owner: { address: transaction.address },
                 tags: transaction.tags,
                 bundled: true,
-                timestamp:bundlrResponse.timestamp
+                timestamp: bundlrResponse.timestamp
             }
             let belongingContracts = transaction.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
             for (let contract of belongingContracts) {
