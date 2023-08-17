@@ -9,6 +9,7 @@
   "private": false,
   "dependencies": {
     "@fastify/autoload": "^5.7.1",
+    "arbundles": "^0.9.8",
     "arweave": "^1.13.7",
     "blake2": "^5.0.0",
     "consola": "^3.1.0",
@@ -20,7 +21,7 @@
     "json5": "^2.2.3",
     "lmdb": "^2.8.0",
     "lodash.get": "^4.4.2",
-    "ofetch": "^1.1.0",
+    "ofetch": "^1.1.1",
     "plugin": "^0.3.3",
     "string-similarity-js": "^2.1.4",
     "wasmoon": "^1.15.0"
