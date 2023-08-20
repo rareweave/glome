@@ -1,7 +1,7 @@
 let { fetch } = require('ofetch')
 let { blake3: hash } = require("hash-wasm")
 const { LuaFactory } = require('wasmoon')
-const similarityScore=require("string-similarity-js").stringSimilarity
+const similarityScore = require("string-similarity-js").stringSimilarity
 const luaFactory = new LuaFactory()
 const { consola } = require('consola')
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
@@ -185,12 +185,12 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
   while (hasNextPage) {
     let currentChunkResult = await fetch(config.gateways.arweaveGql, module.exports.makeTxQuery(min, tags, baseOnly, cursor)).catch(e => null).then(res => res ? res.json().catch(() => null) : null)
     if (!currentChunkResult) { continue }
-  
+
     hasNextPage = currentChunkResult?.data?.transactions?.pageInfo?.hasNextPage
     if (currentChunkResult?.data?.transactions?.edges) {
       currentChunkResult.data.transactions.edges = currentChunkResult?.data?.transactions?.edges.filter(edge => edge?.node?.block?.height)
     }
-    
+
     cursor = (currentChunkResult?.data?.transactions?.edges || []).filter(edge => edge?.node?.block?.height).at(-1)?.cursor || cursor
     let resultPart = currentChunkResult?.data?.transactions?.edges
     resultPart = (resultPart ? resultPart.map(edge => {
@@ -198,9 +198,9 @@ module.exports.executeTxQuery = async function* (min, tags, baseOnly, cursor) {
         if (!edge?.node?.block?.height) {
           return null
         }
-    }
+      }
       return { ...edge.node, address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.owner.address, owner: { address: edge.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.owner.address }, timestamp: edge.node.block.timestamp * 1000, bundled: false }
-    }) : []).filter(rp=>rp)
+    }) : []).filter(rp => rp)
 
     yield* resultPart
     await module.exports.wait(config.requestTimeout)
@@ -215,7 +215,7 @@ module.exports.findTxById = async function (txId) {
   let fromGql = await fetch(config.gateways.arweaveGql, module.exports.findTxQuery(txId)).catch(e => null).then(res => res ? res.json() : null)
   fromGql = fromGql?.data?.transactions?.edges[0]
   if (fromGql) {
-    fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : (fromGql.node.address)||fromGql.node?.owner?.address
+    fromGql.node.owner.address = fromGql.node.owner.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? fromGql.node.tags.find(t => t.name == "Sequencer-Owner").value : (fromGql.node.address) || fromGql.node?.owner?.address
     await databases.transactions.put(txId, fromGql.node)
     return fromGql.node
   } else { return null }
@@ -240,7 +240,16 @@ module.exports.executeBundlrQuery = async function* (tags) {
       let resultPart = currentChunkResult?.data?.transactions?.edges
       // console.log(currentChunkResult)
       resultPart = resultPart ? resultPart.map(edge => {
-        return { ...edge.node, address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address, owner: { address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address }, quantity: { winston: "0" }, fee: { winston: "0" }, recipient: "", block: { timestamp: Math.round(edge.node.timestamp / 1000) }, bundled: true }
+        return {
+          ...edge.node,
+          address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address,
+          owner: { address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address },
+          quantity: { winston: "0" },
+          fee: { winston: "0" },
+          recipient: "",
+          block: { timestamp: Math.round(edge.node.timestamp / 1000) },
+          bundled: true
+        }
       }) : []
 
       yield* resultPart
@@ -264,11 +273,11 @@ module.exports.fetchTxContent = async function (txId) {
 }
 module.exports.ensureCodeAvailability = async function (codeTxId) {
   if (!await databases.codes.doesExist(codeTxId)) {
-    let codeTx=await module.exports.findTxById(codeTxId)
-   
+    let codeTx = await module.exports.findTxById(codeTxId)
+
     let code = await module.exports.fetchTxContent(codeTxId)
-    if (code&&codeTx&&codeTx?.tags?.find(t=>t.name=="Content-Type")?.value) {
-      await databases.contentTypes.put(codeTxId,codeTx?.tags?.find(t=>t.name=="Content-Type")?.value)
+    if (code && codeTx && codeTx?.tags?.find(t => t.name == "Content-Type")?.value) {
+      await databases.contentTypes.put(codeTxId, codeTx?.tags?.find(t => t.name == "Content-Type")?.value)
       await databases.codes.put(codeTxId, code)
     }
   }
@@ -280,30 +289,31 @@ module.exports.wait = (ms) => {
 }
 module.exports.accessPropertyByPath = require("lodash.get")
 let heap = {}
-module.exports.quickExpressionFilter =async (expression, target) => {
-  let isolate=await luaFactory.createEngine({traceAllocations:true})
+module.exports.quickExpressionFilter = async (expression, target) => {
+  let isolate = await luaFactory.createEngine({ traceAllocations: true })
   isolate.global.setMemoryMax(2.56e+8)
   isolate.global.setTimeout(Date.now() + 2000)
- 
-  Object.entries(target).forEach(([k,v])=>{
-    isolate.global.set(k,v)
+
+  Object.entries(target).forEach(([k, v]) => {
+    isolate.global.set(k, v)
   })
-  isolate.global.set("similarityScore",(s1,s2)=>{
-    return similarityScore(s1,s2)
+  isolate.global.set("similarityScore", (s1, s2) => {
+    return similarityScore(s1, s2)
   }
-    )
-  isolate.global.set("includes",(s1,s2)=>{
-    return s1.includes(s2)})
+  )
+  isolate.global.set("includes", (s1, s2) => {
+    return s1.includes(s2)
+  })
 
   let res;
-  try{
-  res=await isolate.doString(expression)
-  }catch(e){
+  try {
+    res = await isolate.doString(expression)
+  } catch (e) {
     console.error(e)
-    res=null
-  }finally{
-  isolate.global.close()
-}
+    res = null
+  } finally {
+    isolate.global.close()
+  }
   return res
 }
 
@@ -361,12 +371,12 @@ async function quickSort(arr, compare = async (a, b) => a - b) {
       right.push(arr[i]);
     }
   }
-  let ls=quicksort(left, compare)// we need to call it in parallel to achieve faster results
-  let rs=quicksort(right, compare)
+  let ls = quicksort(left, compare)// we need to call it in parallel to achieve faster results
+  let rs = quicksort(right, compare)
   return [
     ...(await ls),
     pivot,
     ...(await rs)
   ];
 }
-module.exports.quickSort=quickSort
+module.exports.quickSort = quickSort
