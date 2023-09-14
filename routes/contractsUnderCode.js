@@ -4,8 +4,10 @@ let { quickExpressionFilter, properRange, quickSort } = require("../utils.js")
 module.exports = fp(async function (app, opts) {
     app.post("/contracts-under-code/:codeIds", async (req, resp) => {
 
-        let contracts = properRange(databases.contracts, [["filter", c => c && req.params.codeIds.split("|").includes(c.value.tags.find(tag => tag.name == "Contract-Src")?.value)], ["map", async c => {
-
+        let contracts = properRange(databases.contracts, [["filter", c => {
+            if (!c) { return false }
+            return c && req.params.codeIds.split("|").includes(c.value.tags.find(tag => tag.name == "Contract-Src")?.value)
+        }], ["map", async c => {
             return { state: (await databases.evaluationResults.get(c?.value?.id + "latest"))?.state, id: c?.value?.id, creationTime: c?.value?.timestamp }
         }], ["filter", async c => {
 

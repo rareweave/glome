@@ -23,17 +23,32 @@ module.exports = async function startSyncLoop() {
         await databases.contracts.put(contract.id, contract)
         servedContractsIds.add(contract.id)
     }
-    for (let contract of config.allowed.contractIds) {
-        let contractTx = await findTxById(contract)
-        await databases.contracts.put(contract, contractTx)
-    }
+
     setInterval(async () => {
+      
         for await (let contract of (await executeTxQuery(0, [["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]], false,null))) {
             // console.log("fetched contract "+contract.id)
             await databases.contracts.put(contract.id, contract)
             servedContractsIds.add(contract.id)
         }
+        
     }, 10000)
+    setInterval(async () => {
+
+        for await (let contract of (await executeBundlrQuery([["Contract-Src", config.allowed.contractSourceIds], ["App-Name", ["SmartWeaveContract"]]]))) {
+            if (!servedContractsIds.has(contract.id)) {
+                console.log("fetched contract " + contract.id)
+            }
+            
+            await databases.contracts.put(contract.id, contract)
+            servedContractsIds.add(contract.id)
+        }
+
+    }, 10000)
+    for (let contract of config.allowed.contractIds) {
+        let contractTx = await findTxById(contract)
+        await databases.contracts.put(contract, contractTx)
+    }
     consola.info("Serving " + servedContractsIds.size + " contracts");
 
     for (let contractIndex = 0; contractIndex < servedContractsIds.size; contractIndex += 4) {
