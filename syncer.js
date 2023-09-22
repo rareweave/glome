@@ -5,8 +5,12 @@ let lmdb = require("lmdb")
 const { fetch } = require("ofetch")
 module.exports = async function startSyncLoop() {
     async function syncNetworkInfo() {
-        let gatewayNetworkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c?c?.json():null)
-        global.networkInfo = gatewayNetworkInfo || global.networkInfo
+        try {
+            global.networkInfo = await fetch(config.gateways.arweaveGateway + "/info").catch(e => null).then(c => c ? c?.json() : null) || global.networkInfo 
+        } catch (e) {
+            return
+        }
+        
         consola.info("Block height: " + global.networkInfo.height)
     }
     await syncNetworkInfo()
@@ -71,7 +75,9 @@ module.exports = async function startSyncLoop() {
             }
         }
         for await (let txForContract of transactions) {
+
             let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
+         
             for (let contract of belongingContracts) {
                 if (!await databases.interactions[contract].doesExist(txForContract.id)) {
                     await databases.interactions[contract].put(txForContract.id, txForContract)
@@ -87,7 +93,9 @@ module.exports = async function startSyncLoop() {
         if (!databases.interactions[contract]) {
             databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
         }
-        await databases.indexes.put(contract, [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id))
+        let sortedInteractions = [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id)
+     
+        await databases.indexes.put(contract,sortedInteractions )
         consola.info("Sorted interactions for contract " + contract)
     }
     consola.success("Synced all contracts interactions")
@@ -116,6 +124,7 @@ module.exports = async function startSyncLoop() {
                 }
             }
             for await (let txForContract of transactions) {
+
                 let belongingContracts = txForContract.tags.filter(t => t.name == "Contract").filter(t => contracts.includes(t.value)).map(t => t.value)
                 for (let contract of belongingContracts) {
                     if (!await databases.interactions[contract].doesExist(txForContract.id)) {
@@ -124,7 +133,7 @@ module.exports = async function startSyncLoop() {
                     }
                 }
             }
-            consola.success("Checked for interactions on contracts " + contracts)
+            // consola.success("Checked for interactions on contracts " + contracts)
         }
     }, Math.max(servedContractsIds.size * 300, 4000))
 

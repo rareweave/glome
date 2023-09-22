@@ -8,28 +8,29 @@ module.exports = async function executionSync() {
     setInterval(syncExecution, 5000)
 }
 async function syncExecution() {
+    console.log("Executing contracts")
     for (contract of servedContractsIds) {
         if (!databases.interactions[contract]) {
             databases.interactions[contract] = lmdb.open("./db/interactions/" + contract)
         }
         await databases.indexes.put(contract, [...databases.interactions[contract].getRange().map(({ key, value }) => ({ id: value.id, timestamp: value.timestamp }))].sort((a, b) => a.timestamp - b.timestamp).map(i => i.id))
     }
-    global.servedContractsIds.forEach(async contractId => {
-
+    for (let contractId of [...global.servedContractsIds]) {
         let contractInteractions = await databases.indexes.get(contractId)
         if (!contractInteractions) {
             consola.error(contractId, "No interactions in index")
-            return
+            continue;
         }
+ 
         let amountOfInteractions = contractInteractions.length
 
         let isExecuted = await databases.isExecuted.get(contractId);
         if (typeof isExecuted === "number" && isExecuted == amountOfInteractions) {
-            return
+            continue;
         }
         let contractInstantiateTx = await databases.contracts.get(contractId)
         // console.log(contractInstantiateTx, contractId)
-        if (!contractInstantiateTx) { return }
+        if (!contractInstantiateTx) { continue }
 
         let interactionIndex = -1
         for (let interaction of contractInteractions) {
@@ -107,5 +108,9 @@ async function syncExecution() {
         }
         await databases.isExecuted.put(contractId, amountOfInteractions)
         consola.info("Executed contract " + contractId + ", " + amountOfInteractions + " interactions")
-    })
+    }
+
+
+       
+   
 }

@@ -2,7 +2,7 @@ let lmdb = require("lmdb")
 let JSON5 = require("json5")
 let consola = require("consola")
 let autoLoad = require("@fastify/autoload")
-const app = require('fastify')({ logger: true })
+const app = require('fastify')({ logger: false })
 let fs = require("fs")
 
 global.config = JSON5.parse(fs.readFileSync("./config.json5", "utf8"))
