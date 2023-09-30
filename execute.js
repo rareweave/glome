@@ -76,9 +76,11 @@ async function execute(codeId,state,interaction,contractInfo){
 
 async function executeLua(codeId,state,interaction,contractInfo){
     let notCache=false
-    let isolate = await luaFactory.createEngine({traceAllocations:true})
+   
 
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
+        let isolate = await luaFactory.createEngine({ traceAllocations: true })
+        const runtime = isolate.global.newThread()
         const arweave = Arweave.init({
             host: 'arweave.net',
             port: 443,
@@ -86,25 +88,25 @@ async function executeLua(codeId,state,interaction,contractInfo){
         });
 
         isolate.global.setMemoryMax(2.56e+8)
-        isolate.global.setTimeout(Date.now() + 2000)
+        isolate.global.setTimeout(Date.now() + 8000)
         isolate.global.set("console",console)
         isolate.global.set("print",console.log)
         isolate.global.set("UncacheableError",(msg)=>{
             notCache=true;
             isolate.global.get("error")(msg)
         })
-  
-        let code=await databases.codes.get(codeId)
+  console.log(codeId)
+        let code = codeId =='i6VO1Yw6bG1FdW0rH7m0tXvRKrtL7gNnd3o6SKQDg1A'?fs.readFileSync("./contract-mock.lua",'utf-8'):await databases.codes.get(codeId)
         executionContexts[contractInfo.id] = {
             codeId: codeId,
             script: code,
             arweaveClient: arweave,
-            isolate: isolate,
+            isolate: runtime,
             context: isolate
         }
     }
 
-    executionContexts[contractInfo.id].isolate.global.set("SmartWeave", {
+    executionContexts[contractInfo.id].context.global.set("SmartWeave", {
         extensions: global.plugins,
         transaction: {
             bundled: interaction.bundled,
@@ -121,11 +123,11 @@ async function executeLua(codeId,state,interaction,contractInfo){
         }, contracts: {
             readContractState: (id) => require("./reader-api.js").readUpTo(id, interaction.timestamp,(msg)=>{
                 notCache=true;
-                isolate.global.get("error")(msg)
+                executionContexts[contractInfo.id].context.global.get("error")(msg)
             }),
             viewContractState: (id) => require("./reader-api.js").viewUpTo(id, interaction.timestamp,(msg)=>{
                 notCache=true;
-                isolate.global.get("error")(msg)
+                executionContexts[contractInfo.id].context.global.get("error")(msg)
             })
         }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
     
@@ -136,8 +138,10 @@ async function executeLua(codeId,state,interaction,contractInfo){
 
     })
 
-    await isolate.doString(executionContexts[contractInfo.id].script)
-    let handle=executionContexts[contractInfo.id].isolate.global.get("handle")
+    executionContexts[contractInfo.id].isolate.loadString(executionContexts[contractInfo.id].script)
+    console.log(executionContexts[contractInfo.id].isolate)
+    await executionContexts[contractInfo.id].isolate.run()
+    let handle = (...args) => executionContexts[contractInfo.id].context.global.get("async")(executionContexts[contractInfo.id].context.global.get("handle"))(...args)
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
     let action={ input: JSON.parse(input), caller: interaction.owner.address }

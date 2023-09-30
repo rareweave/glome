@@ -235,7 +235,7 @@ module.exports.executeBundlrQuery = async function* (tags) {
     while (hasNextPage) {
 
       let currentChunkResult = await fetch(bundlrGateway, module.exports.makeBundlrQuery(tags, cursor)).catch(e => {
-        // console.error(JSON.parse(module.exports.makeBundlrQuery(tags, cursor).body).query)
+     
         console.error(e)
         return null
       }).then(res => res ? res.json() : null)
@@ -243,7 +243,9 @@ module.exports.executeBundlrQuery = async function* (tags) {
       cursor = currentChunkResult?.data?.transactions?.edges?.at(-1)?.cursor || cursor
       let resultPart = currentChunkResult?.data?.transactions?.edges
       // console.log(currentChunkResult)
+      // console.log(JSON.parse(module.exports.makeBundlrQuery(tags, cursor).body).query)
       resultPart = resultPart ? resultPart.map(edge => {
+       
         return {
           ...edge.node,
           address: edge.node.address === "jnioZFibZSCcV8o-HkBXYPYEYNib4tqfexP0kCBXX_M" ? edge.node.tags.find(t => t.name == "Sequencer-Owner")?.value : edge.node.address,
@@ -354,7 +356,8 @@ module.exports.properRange = async function* properRange(db, transformations, st
         try {
           res = await transformation[1](item)
         } catch (e) {
-          res=false
+          res = false
+          continue itemsLoop;
         }
         if (!res) { continue itemsLoop; }
       }
