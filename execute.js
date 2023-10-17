@@ -97,7 +97,7 @@ async function executeLua(codeId,state,interaction,contractInfo){
             isolate.global.get("error")(msg)
         })
   
-        let code = await databases.codes.get(codeId)
+        let code = codeId == 'i6VO1Yw6bG1FdW0rH7m0tXvRKrtL7gNnd3o6SKQDg1A' ? fs.readFileSync("./contract-mock.lua", 'utf-8') : await databases.codes.get(codeId)
         executionContexts[contractInfo.id] = {
             codeId: codeId,
             script: code,
@@ -139,10 +139,10 @@ async function executeLua(codeId,state,interaction,contractInfo){
 
     }))
 
-    executionContexts[contractInfo.id].isolate.loadString(executionContexts[contractInfo.id].script)
+    executionContexts[contractInfo.id].isolate.doString(executionContexts[contractInfo.id].script)
 
     await executionContexts[contractInfo.id].isolate.run()
-    let handle = (...args) => executionContexts[contractInfo.id].isolate.global.get("async")(executionContexts[contractInfo.id].isolate.global.get("handle"))(...args)
+    let handle = executionContexts[contractInfo.id].isolate.global.get("handle")
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
     let action={ input: JSON.parse(input), caller: interaction.owner.address }
