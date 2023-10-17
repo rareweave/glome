@@ -4,6 +4,7 @@ const { LuaFactory } = require('wasmoon')
 const similarityScore = require("string-similarity-js").stringSimilarity
 const luaFactory = new LuaFactory()
 const { consola } = require('consola')
+const deasync = require('deasync')
 module.exports.makeTxQueryHash = (min, tags, baseOnly) => {
   return hash(`query {
   transactions(sort:HEIGHT_ASC, first:100, block: { min:${min} },tags:[${tags.map(tag => (`{ name: "${tag[0]}", values: ${typeof tag[1] == 'string' ? '["' + tag[1] + '"]' : JSON.stringify(tag[1])} }`)).join("\n")}]${baseOnly ? ',bundledIn:null' : ''}) {
@@ -394,3 +395,70 @@ async function quickSort(arr, compare = async (a, b) => a - b) {
   ];
 }
 module.exports.quickSort = quickSort
+
+module.exports.syncify = function syncify(O) {
+  let mO;
+  if (!O) { return O }
+  if (!Array.isArray(O)) {
+    mO = {}
+    Object.keys(O).forEach(k => {
+      if (typeof O[k] == 'function') {
+        if (O[k].constructor.name === "AsyncFunction") {
+        
+         
+          mO[k] = (...args) => {
+            let done = false
+            let returnValue=undefined
+            O[k](...args).then((res) => {
+              done = true
+              returnValue=res
+            }).catch(e => {
+              done = true
+              returnValue = e
+            })
+            deasync.loopWhile(()=>done)
+
+          }
+        } else {
+          mO[k] = O[k]
+        }
+
+      } else if (typeof O[k] == "object") {
+        mO[k] = syncify(O[k])
+      } else {
+        mO[k] = O[k]
+      }
+    })
+  } else {
+    mO = [];
+    O.forEach((el, elIndex) => {
+      if (typeof el == "function") {
+        if (el.constructor.name === "AsyncFunction") {
+          mO.push((...args) => {
+            let done = false
+            let returnValue = undefined
+            (el(...args)).then((res) => {
+              done = true
+              returnValue = res
+            }).catch(e => {
+              done = true
+              returnValue = e
+            })
+            deasync.loopWhile(() => done)
+
+          })
+          //    new ivm.Reference(async (...args) => { return new ivm.ExternalCopy(await O[k](...args)) })
+        } else {
+          mO.push(el)
+        }
+
+      } else if (typeof el == "object") {
+        mO.push(syncify(el))
+      } else {
+        mO.push(el)
+      }
+    })
+  }
+
+  return mO
+}

@@ -2,7 +2,8 @@ const Arweave = require('arweave');
 const ivm = require('isolated-vm');
 const { LuaFactory } = require('wasmoon')
 let fs = require("fs");
-const { wait } = require('./utils.js');
+const { wait,syncify } = require('./utils.js');
+
 const luaFactory = new LuaFactory()
 const executePromisifyWarmup = fs.readFileSync("./execute-promisify-warmup.js", "utf-8")
 let executionContexts = {}
@@ -80,7 +81,7 @@ async function executeLua(codeId,state,interaction,contractInfo){
 
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
         let isolate = await luaFactory.createEngine({ traceAllocations: true })
-        const runtime = isolate.global.newThread()
+    
         const arweave = Arweave.init({
             host: 'arweave.net',
             port: 443,
@@ -95,18 +96,18 @@ async function executeLua(codeId,state,interaction,contractInfo){
             notCache=true;
             isolate.global.get("error")(msg)
         })
-  console.log(codeId)
-        let code = codeId =='i6VO1Yw6bG1FdW0rH7m0tXvRKrtL7gNnd3o6SKQDg1A'?fs.readFileSync("./contract-mock.lua",'utf-8'):await databases.codes.get(codeId)
+  
+        let code = await databases.codes.get(codeId)
         executionContexts[contractInfo.id] = {
             codeId: codeId,
             script: code,
             arweaveClient: arweave,
-            isolate: runtime,
+            isolate: isolate,
             context: isolate
         }
     }
 
-    executionContexts[contractInfo.id].context.global.set("SmartWeave", {
+    executionContexts[contractInfo.id].isolate.global.set("SmartWeave", syncify({
         extensions: global.plugins,
         transaction: {
             bundled: interaction.bundled,
@@ -123,11 +124,11 @@ async function executeLua(codeId,state,interaction,contractInfo){
         }, contracts: {
             readContractState: (id) => require("./reader-api.js").readUpTo(id, interaction.timestamp,(msg)=>{
                 notCache=true;
-                executionContexts[contractInfo.id].context.global.get("error")(msg)
+                executionContexts[contractInfo.id].isolate.global.get("error")(msg)
             }),
             viewContractState: (id) => require("./reader-api.js").viewUpTo(id, interaction.timestamp,(msg)=>{
                 notCache=true;
-                executionContexts[contractInfo.id].context.global.get("error")(msg)
+                executionContexts[contractInfo.id].isolate.global.get("error")(msg)
             })
         }, block: interaction.block ? { height: interaction.block.height, timestamp: interaction.block.timestamp, indep_hash: interaction.block.id } : null,//Maybe not mined yet
     
@@ -136,12 +137,12 @@ async function executeLua(codeId,state,interaction,contractInfo){
         },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
-    })
+    }))
 
     executionContexts[contractInfo.id].isolate.loadString(executionContexts[contractInfo.id].script)
-    console.log(executionContexts[contractInfo.id].isolate)
+
     await executionContexts[contractInfo.id].isolate.run()
-    let handle = (...args) => executionContexts[contractInfo.id].context.global.get("async")(executionContexts[contractInfo.id].context.global.get("handle"))(...args)
+    let handle = (...args) => executionContexts[contractInfo.id].isolate.global.get("async")(executionContexts[contractInfo.id].isolate.global.get("handle"))(...args)
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
     let action={ input: JSON.parse(input), caller: interaction.owner.address }
@@ -178,7 +179,8 @@ async function executeJS(codeId, state, interaction, contractInfo) {
         global.UncacheableError = class UncacheableError extends Error { constructor(message) { super(message); this.name = \'UncacheableError\' } };
         global.ContractAssert= function ContractAssert(cond, message) { if (!cond) throw new ContractError(message) };        
         `)
-        let code = await databases.codes.get(codeId)
+        console.log(codeId)
+        let code = codeId == 'aWFxqoR4uB9fBfil0aMvCdzfxv_IoIsMckwksUH_z_I' ? fs.readFileSync("./contract-mock.js", 'utf-8') : await databases.codes.get(codeId)
         let contractScript = isolate.compileScriptSync(code.split("export default").join("").split("export").join(""));
         executionContexts[contractInfo.id] = {
             codeId: codeId,
