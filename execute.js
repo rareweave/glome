@@ -1,6 +1,6 @@
 const Arweave = require('arweave');
-const ivm = require('isolated-vm');
-const { LuaFactory } = require('wasmoon')
+const Glomium=require("glomium")
+const { LuaFactory } = require('glome-wasmoon')
 let fs = require("fs");
 const { wait,syncify } = require('./utils.js');
 
@@ -88,10 +88,12 @@ async function executeLua(codeId,state,interaction,contractInfo){
             protocol: 'https'
         });
 
-        isolate.global.setMemoryMax(2.56e+8)
+        isolate.global.setMemoryMax(10e+8)
         isolate.global.setTimeout(Date.now() + 8000)
         isolate.global.set("console",console)
-        isolate.global.set("print",console.log)
+        isolate.global.set("print", console.log)
+        console.log()
+        // console.log("yield", isolate.global.lua.lua_yield(isolate.global.address,0))
         isolate.global.set("UncacheableError",(msg)=>{
             notCache=true;
             isolate.global.get("error")(msg)
@@ -107,7 +109,7 @@ async function executeLua(codeId,state,interaction,contractInfo){
         }
     }
 
-    executionContexts[contractInfo.id].isolate.global.set("SmartWeave", syncify({
+    executionContexts[contractInfo.id].isolate.global.set("SmartWeave", {
         extensions: global.plugins,
         transaction: {
             bundled: interaction.bundled,
@@ -137,12 +139,12 @@ async function executeLua(codeId,state,interaction,contractInfo){
         },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
-    }))
+    })
+    const execThread=executionContexts[contractInfo.id].isolate.global.newThread()
+    await execThread.loadString(executionContexts[contractInfo.id].script)
+await execThread.run()
 
-    executionContexts[contractInfo.id].isolate.doString(executionContexts[contractInfo.id].script)
-
-    await executionContexts[contractInfo.id].isolate.run()
-    let handle = executionContexts[contractInfo.id].isolate.global.get("handle")
+    let handle = (...args) =>execThread.call('handle',...args)
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
     let action={ input: JSON.parse(input), caller: interaction.owner.address }
@@ -153,48 +155,54 @@ async function executeLua(codeId,state,interaction,contractInfo){
     }catch(e){
         if(notCache){
             throw new UncacheableError(e)
-        }else{
+        } else {
+            console.error(e)
             throw new Error(e)
         }
     }
     return res
 }
+async function runLuaFunction(main, co, funcName, args) {
+    // Get the function from the main thread and move it to the coroutine's stack
+    main.lua.lua_getglobal(main.address, funcName);
+    main.lua.lua_xmove(main, co.address, 1);
 
+    // Push the arguments for the function onto the coroutine's stack
+    for (const arg of args) {
+        co.pushValue(arg);
+    }
+
+    // Resume the coroutine, effectively running the function
+    return await co.runSync(args.length);
+}
 async function executeJS(codeId, state, interaction, contractInfo) {
 
     if (!executionContexts[contractInfo.id] || executionContexts[contractInfo.id].codeId != codeId) {
-        const isolate = new ivm.Isolate({ memoryLimit: 256 });
-        const context = isolate.createContextSync();
+        const vm = new Glomium(config.glomiumConfig)
         const arweave = Arweave.init({
             host: 'arweave.net',
             port: 443,
             protocol: 'https'
         });
-        context.global.setSync("global", context.global.derefInto())
-        context.global.setSync('console', convertToRuntimePassable(console));
+
+        context.global.setSync('console', console);
 
 
-        context.evalSync(`
-        global.ContractError=class ContractError extends Error { constructor(message) { super(message); this.name = \'ContractError\' } };
-        global.UncacheableError = class UncacheableError extends Error { constructor(message) { super(message); this.name = \'UncacheableError\' } };
-        global.ContractAssert= function ContractAssert(cond, message) { if (!cond) throw new ContractError(message) };        
-        `)
-        console.log(codeId)
-        let code = codeId == 'aWFxqoR4uB9fBfil0aMvCdzfxv_IoIsMckwksUH_z_I' ? fs.readFileSync("./contract-mock.js", 'utf-8') : await databases.codes.get(codeId)
-        let contractScript = isolate.compileScriptSync(code.split("export default").join("").split("export").join(""));
+       
+        
+        let code = await databases.codes.get(codeId)
         executionContexts[contractInfo.id] = {
+            vm,
             codeId: codeId,
-            script: contractScript,
+            code,
             arweaveClient: arweave,
-            isolate: isolate,
-            context: context
         }
     }
-    let internals = new ivm.Reference({})
+  
 
-    executionContexts[contractInfo.id].context.global.setSync("internals", internals)
 
-   await executionContexts[contractInfo.id].context.global.setSync("SmartWeave", convertToRuntimePassable({
+
+   await executionContexts[contractInfo.id].vm.set("SmartWeave", {
         extensions: global.plugins,
         transaction: {
             bundled: interaction.bundled,
@@ -221,15 +229,14 @@ async function executeJS(codeId, state, interaction, contractInfo) {
         },
         unsafeClient: executionContexts[contractInfo.id].arweaveClient
 
-    }, internals))
-    executionContexts[contractInfo.id].context.global.setSync("_ivm", ivm)
-    executionContexts[contractInfo.id].context.evalSync(executePromisifyWarmup)
-    await executionContexts[contractInfo.id].script.run(executionContexts[contractInfo.id].context)
-    executionContexts[contractInfo.id].context.global.setSync("__state", convertToRuntimePassable(state))
+    }, internals)
+
+    
+    await executionContexts[contractInfo.id].vm.run(executionContexts[contractInfo.id].code)
     let contractCallIndex = interaction.tags.filter(tag => tag.name == "Contract").findIndex(tag => tag.value == contractInfo.id)
     let input = interaction.tags.filter(tag => tag.name == "Input")[contractCallIndex]?.value
-    executionContexts[contractInfo.id].context.global.setSync("__action", convertToRuntimePassable({ input: JSON.parse(input), caller: interaction.owner.address }))
-    return (await executionContexts[contractInfo.id].context.evalSync(`handle(__state,__action)`, { promise: true, externalCopy: true })).copy()
+   
+    return (await executionContexts[contractInfo.id].vm.get(`handle`))(state, { input: JSON.parse(input), caller: interaction.owner.address })
 }
 class UncacheableError extends Error { constructor(message) {this.name = 'UncacheableError'; super(message)} }
 module.exports = execute
