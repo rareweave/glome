@@ -200,7 +200,7 @@ async function executeJS(codeId, state, interaction, contractInfo) {
     }
   
 
-
+    executionContexts[contractInfo.id].vm.clear()
 
    await executionContexts[contractInfo.id].vm.set("SmartWeave", {
         extensions: global.plugins,
